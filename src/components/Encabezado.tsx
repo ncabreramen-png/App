@@ -36,8 +36,8 @@ export default function Encabezado({ usuario }: { usuario: Usuario }) {
         </form>
       </div>
 
-      <nav className="mx-auto max-w-5xl overflow-x-auto px-2 pb-2">
-        <ul className="flex gap-1 whitespace-nowrap">
+      <nav className="mx-auto max-w-5xl px-2 pb-2">
+        <ul className="flex flex-wrap gap-1">
           {enlaces.map((e) => (
             <li key={e.href}>
               <Link
