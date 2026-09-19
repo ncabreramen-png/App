@@ -88,6 +88,24 @@ create index if not exists reportes_autor_idx      on public.reportes (reportado
 create index if not exists reportes_estatus_idx    on public.reportes (estatus);
 create index if not exists reportes_fecha_idx      on public.reportes (fecha desc);
 
+-- curva_avance: la curva S del proyecto. Un registro por mes, cargado por la
+-- gerencia desde el cronograma contractual.
+create table if not exists public.curva_avance (
+  id                 uuid primary key default gen_random_uuid(),
+  periodo            date not null unique,
+  avance_programado  numeric(5,2) not null default 0
+                       check (avance_programado between 0 and 100),
+  -- Nullable a proposito: un mes que todavia no se midio no vale 0, vale
+  -- "sin dato". Asi la linea de avance real corta donde termina la medicion
+  -- en vez de desplomarse a cero sobre los meses futuros.
+  avance_real        numeric(5,2)
+                       check (avance_real between 0 and 100),
+  nota               text,
+  actualizado_en     timestamptz not null default now()
+);
+
+create index if not exists curva_avance_periodo_idx on public.curva_avance (periodo);
+
 -- ----------------------------------------------------------------------------
 -- 3. Funciones auxiliares
 -- ----------------------------------------------------------------------------
@@ -192,6 +210,19 @@ create trigger reportes_before_update
   before update on public.reportes
   for each row execute function public.reportes_sellar_revision();
 
+create or replace function public.curva_tocar_actualizado()
+returns trigger language plpgsql as $$
+begin
+  new.actualizado_en := now();
+  return new;
+end;
+$$;
+
+drop trigger if exists curva_before_update on public.curva_avance;
+create trigger curva_before_update
+  before update on public.curva_avance
+  for each row execute function public.curva_tocar_actualizado();
+
 -- ----------------------------------------------------------------------------
 -- 4. Vista del semaforo (regla de negocio 3)
 --    Cuenta reportes de tipo 'Problemática' O con estatus 'Rechazado'.
@@ -231,6 +262,7 @@ grant select on public.frentes_semaforo to authenticated;
 -- ----------------------------------------------------------------------------
 -- 5. Row Level Security
 -- ----------------------------------------------------------------------------
+alter table public.curva_avance       enable row level security;
 alter table public.usuarios            enable row level security;
 alter table public.frentes_de_trabajo  enable row level security;
 alter table public.reportes            enable row level security;
@@ -275,6 +307,20 @@ create policy reportes_insert_propio on public.reportes
 drop policy if exists reportes_update_gerente on public.reportes;
 create policy reportes_update_gerente on public.reportes
   for update to authenticated
+  using (public.es_gerente())
+  with check (public.es_gerente());
+
+-- curva_avance ----------------------------------------------------------
+-- La curva es informacion de proyecto, no de un reporte: la ve cualquier
+-- usuario autenticado. Solo la gerencia la edita.
+drop policy if exists curva_select on public.curva_avance;
+create policy curva_select on public.curva_avance
+  for select to authenticated
+  using (true);
+
+drop policy if exists curva_escritura_gerente on public.curva_avance;
+create policy curva_escritura_gerente on public.curva_avance
+  for all to authenticated
   using (public.es_gerente())
   with check (public.es_gerente());
 

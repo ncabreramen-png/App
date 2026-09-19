@@ -70,6 +70,17 @@ export type FrenteConSemaforo = Frente & {
   semaforo: Semaforo;
 };
 
+/** Un mes de la curva S del proyecto. */
+export type PuntoCurva = {
+  id: string;
+  periodo: string;
+  avance_programado: number;
+  /** null = mes todavia sin medir. No es cero. */
+  avance_real: number | null;
+  nota: string | null;
+  actualizado_en: string;
+};
+
 export type Reporte = {
   id: string;
   frente_de_trabajo_id: string;
@@ -113,4 +124,28 @@ export function formatearFecha(iso: string): string {
     hour: "2-digit",
     minute: "2-digit",
   });
+}
+
+/** "2026-09-01" -> "sep 2026". Se arma en UTC para que no corra un dia. */
+export function formatearPeriodo(iso: string): string {
+  const [a, m] = iso.split("-").map(Number);
+  return new Date(Date.UTC(a, m - 1, 1)).toLocaleDateString("es-SV", {
+    month: "short",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+}
+
+/** Porcentaje con un decimal y signo explicito cuando se pide. */
+export function formatearPorcentaje(n: number, conSigno = false): string {
+  const v = Number(n) || 0;
+  return `${conSigno && v > 0 ? "+" : ""}${v.toFixed(1)}%`;
+}
+
+/** El ultimo mes que tiene medicion real. Es el corte de la curva. */
+export function ultimoMedido(puntos: PuntoCurva[]): PuntoCurva | null {
+  for (let i = puntos.length - 1; i >= 0; i--) {
+    if (puntos[i].avance_real !== null) return puntos[i];
+  }
+  return null;
 }

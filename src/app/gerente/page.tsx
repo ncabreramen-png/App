@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { crearClienteServidor } from "@/lib/supabase/servidor";
-import { obtenerFrentesConSemaforo } from "@/lib/consultas";
+import CurvaAvance from "@/components/CurvaAvance";
+import ResumenCurva from "@/components/ResumenCurva";
+import { obtenerCurva, obtenerFrentesConSemaforo } from "@/lib/consultas";
 import { FRENTES_PRINCIPALES, SEMAFOROS, type Semaforo } from "@/lib/tipos";
 import TarjetaFrente from "./TarjetaFrente";
 
@@ -13,7 +15,10 @@ const ESTILO_RESUMEN: Record<Semaforo, string> = {
 };
 
 export default async function Dashboard() {
-  const frentes = await obtenerFrentesConSemaforo();
+  const [frentes, curva] = await Promise.all([
+    obtenerFrentesConSemaforo(),
+    obtenerCurva(),
+  ]);
 
   const supabase = await crearClienteServidor();
   const { count: pendientes } = await supabase
@@ -38,6 +43,9 @@ export default async function Dashboard() {
           Generar informe de estatus
         </Link>
       </div>
+
+      <ResumenCurva puntos={curva} />
+      <CurvaAvance puntos={curva} />
 
       <div className="grid grid-cols-3 gap-3">
         {SEMAFOROS.map((s) => (

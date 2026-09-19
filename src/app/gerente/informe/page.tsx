@@ -1,7 +1,9 @@
 import BotonImprimir from "@/components/BotonImprimir";
+import CurvaAvance from "@/components/CurvaAvance";
+import ResumenCurva from "@/components/ResumenCurva";
 import GaleriaFotos from "@/components/GaleriaFotos";
 import { InsigniaEstatus, InsigniaSemaforo, InsigniaTipo } from "@/components/Insignias";
-import { obtenerFrentesConSemaforo, obtenerReportes } from "@/lib/consultas";
+import { obtenerCurva, obtenerFrentesConSemaforo, obtenerReportes } from "@/lib/consultas";
 import { firmarFotosPorReporte } from "@/lib/fotos";
 import {
   FRENTES_PRINCIPALES,
@@ -13,9 +15,10 @@ import {
 export const dynamic = "force-dynamic";
 
 export default async function Informe() {
-  const [frentes, { reportes }] = await Promise.all([
+  const [frentes, { reportes }, curva] = await Promise.all([
     obtenerFrentesConSemaforo(),
     obtenerReportes(),
+    obtenerCurva(),
   ]);
   const fotos = await firmarFotosPorReporte(reportes);
 
@@ -43,6 +46,9 @@ export default async function Informe() {
         </div>
         <BotonImprimir />
       </header>
+
+      <ResumenCurva puntos={curva} />
+      <CurvaAvance puntos={curva} />
 
       <section className="grid grid-cols-3 gap-3">
         <div className="tarjeta p-3 text-center">

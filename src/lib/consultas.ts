@@ -1,5 +1,5 @@
 import { crearClienteServidor } from "@/lib/supabase/servidor";
-import type { FrenteConSemaforo, ReporteExpandido } from "@/lib/tipos";
+import type { FrenteConSemaforo, PuntoCurva, ReporteExpandido } from "@/lib/tipos";
 
 export const SELECCION_REPORTE = `
   *,
@@ -46,4 +46,15 @@ export async function obtenerReportes(
     reportes: (data ?? []) as unknown as ReporteExpandido[],
     error: error?.message ?? null,
   };
+}
+
+/** La curva S del proyecto, en orden cronologico. */
+export async function obtenerCurva(): Promise<PuntoCurva[]> {
+  const supabase = await crearClienteServidor();
+  const { data } = await supabase
+    .from("curva_avance")
+    .select("*")
+    .order("periodo");
+
+  return (data ?? []) as PuntoCurva[];
 }
