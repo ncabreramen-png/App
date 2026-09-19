@@ -12,3 +12,7 @@ yarn-error.log*
 .vercel
 *.tsbuildinfo
 next-env.d.ts
+
+# Credenciales temporales pegadas a mano. Nunca deben subirse.
+PEGAR-TOKEN-AQUI.txt
+*.local.txt
