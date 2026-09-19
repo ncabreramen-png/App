@@ -1,6 +1,7 @@
 export const DISCIPLINAS = [
   "Hidráulico",
   "Estructural",
+  "Civil",
   "Mecánico",
   "Geotecnia",
   "Calidad",
