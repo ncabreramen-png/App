@@ -11,10 +11,14 @@ create extension if not exists "pgcrypto";
 -- ----------------------------------------------------------------------------
 do $$ begin
   create type public.disciplina as enum (
-    'Hidráulico', 'Estructural', 'Mecánico', 'Geotecnia',
+    'Hidráulico', 'Estructural', 'Civil', 'Mecánico', 'Geotecnia',
     'Calidad', 'Ambiental', 'Eléctrico'
   );
 exception when duplicate_object then null; end $$;
+
+-- Para bases ya creadas: el bloque de arriba no se ejecuta si el tipo existe,
+-- asi que los valores agregados despues se suman aca uno por uno.
+alter type public.disciplina add value if not exists 'Civil';
 
 do $$ begin
   create type public.rol_usuario as enum ('Campo', 'Gerente');
