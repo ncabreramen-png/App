@@ -104,6 +104,9 @@ export default function CurvaAvance({ puntos }: { puntos: PuntoCurva[] }) {
 
   const finP = geo.programado.at(-1);
   const finR = geo.real.at(-1);
+  // Con un solo mes no hay nada que unir: una linea necesita dos puntos. Se
+  // avisa en vez de dejar un grafico que parece roto.
+  const faltanMeses = puntos.length < 2;
   // Cuando las lineas convergen, las etiquetas de punta se pisan. En vez de
   // apilarlas (que las despega de su linea), se deja solo la de avance real y
   // la leyenda mas el tooltip cargan la otra.
@@ -159,6 +162,14 @@ export default function CurvaAvance({ puntos }: { puntos: PuntoCurva[] }) {
           </li>
         ))}
       </ul>
+
+      {faltanMeses && !verTabla && (
+        <p className="mb-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
+          Con un solo mes cargado se marcan los puntos pero no se dibuja la
+          curva: una línea necesita al menos dos meses. Agregá el siguiente
+          período y aparece.
+        </p>
+      )}
 
       {verTabla ? (
         <TablaCurva puntos={puntos} />
@@ -251,7 +262,7 @@ export default function CurvaAvance({ puntos }: { puntos: PuntoCurva[] }) {
                     key={c}
                     cx={m.x}
                     cy={m.y}
-                    r={4.5}
+                    r={faltanMeses ? 6 : 4.5}
                     fill={c}
                     stroke={SUPERFICIE}
                     strokeWidth={2}
