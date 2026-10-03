@@ -6,9 +6,10 @@ import { BUCKET_ANALISIS } from "@/lib/archivos";
 import { obtenerUnAnalisis } from "@/lib/consultas";
 import { exigirUsuario } from "@/lib/sesion";
 import { crearClienteServidor } from "@/lib/supabase/servidor";
-import { formatearFecha, type Usuario } from "@/lib/tipos";
+import { formatearFecha, type Frente, type Usuario } from "@/lib/tipos";
 import PanelCompartir from "./PanelCompartir";
 import BotonBorrar from "./BotonBorrar";
+import EditorAnalisis from "./EditorAnalisis";
 
 export const dynamic = "force-dynamic";
 
@@ -28,14 +29,18 @@ export default async function DetalleAnalisis({
   const propio = analisis.creado_por === usuario.id;
 
   let candidatos: Usuario[] = [];
+  let frentes: Frente[] = [];
   if (propio) {
     const supabase = await crearClienteServidor();
-    const { data } = await supabase
-      .from("usuarios")
-      .select("*")
-      .neq("id", usuario.id)
-      .order("nombre");
-    candidatos = (data ?? []) as Usuario[];
+    const [{ data: us }, { data: fs }] = await Promise.all([
+      supabase.from("usuarios").select("*").neq("id", usuario.id).order("nombre"),
+      supabase
+        .from("frentes_de_trabajo")
+        .select("id, nombre, frente_principal, avance_fisico, avance_financiero, orden")
+        .order("orden"),
+    ]);
+    candidatos = (us ?? []) as Usuario[];
+    frentes = (fs ?? []) as Frente[];
   }
 
   return (
@@ -83,6 +88,13 @@ export default async function DetalleAnalisis({
 
       {propio && (
         <>
+          <EditorAnalisis
+            analisis={analisis}
+            adjuntos={adjuntos}
+            frentes={frentes}
+            usuarioId={usuario.id}
+          />
+
           <PanelCompartir
             analisisId={analisis.id}
             candidatos={candidatos}

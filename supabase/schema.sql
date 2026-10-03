@@ -387,12 +387,18 @@ create policy reportes_insert_propio on public.reportes
   for insert to authenticated
   with check (reportado_por = auth.uid());
 
--- Solo el gerente modifica un reporte ya creado (aprobar / rechazar).
+-- La gerencia resuelve las aprobaciones y ademas corrige o elimina un reporte
+-- mal cargado. El equipo de campo no puede modificar lo que ya envio.
 drop policy if exists reportes_update_gerente on public.reportes;
 create policy reportes_update_gerente on public.reportes
   for update to authenticated
   using (public.es_gerente())
   with check (public.es_gerente());
+
+drop policy if exists reportes_delete_gerente on public.reportes;
+create policy reportes_delete_gerente on public.reportes
+  for delete to authenticated
+  using (public.es_gerente());
 
 -- curva_avance ----------------------------------------------------------
 -- La curva es informacion de proyecto, no de un reporte: la ve cualquier
@@ -491,7 +497,7 @@ create policy fotos_insert_propio on storage.objects
   for insert to authenticated
   with check (
     bucket_id = 'reportes-fotos'
-    and (storage.foldername(name))[1] = auth.uid()::text
+    and ((storage.foldername(name))[1] = auth.uid()::text or public.es_gerente())
   );
 
 drop policy if exists fotos_select on storage.objects;

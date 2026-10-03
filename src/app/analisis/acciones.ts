@@ -50,6 +50,7 @@ export async function actualizarAnalisis(entrada: {
   titulo: string;
   descripcion: string;
   frenteId: string | null;
+  archivos: Archivo[];
 }): Promise<Resultado> {
   await exigirGerente();
 
@@ -57,16 +58,35 @@ export async function actualizarAnalisis(entrada: {
   if (!titulo) return { ok: false, error: "El título no puede estar vacío." };
 
   const supabase = await crearClienteServidor();
+
+  // Lo que se quito deja de estar referenciado: hay que sacarlo del bucket o
+  // queda ocupando espacio sin que nada lo muestre.
+  const { data: antes } = await supabase
+    .from("analisis")
+    .select("archivos")
+    .eq("id", entrada.id)
+    .maybeSingle();
+
+  const previos = (antes?.archivos ?? []) as Archivo[];
+  const quedan = new Set(entrada.archivos.map((a) => a.ruta));
+  const sobran = previos.filter((a) => !quedan.has(a.ruta)).map((a) => a.ruta);
+
   const { error } = await supabase
     .from("analisis")
     .update({
       titulo,
       descripcion: entrada.descripcion.trim(),
       frente_de_trabajo_id: entrada.frenteId || null,
+      archivos: entrada.archivos,
     })
     .eq("id", entrada.id);
 
   if (error) return { ok: false, error: error.message };
+
+  if (sobran.length > 0) {
+    await supabase.storage.from(BUCKET_ANALISIS).remove(sobran);
+  }
+
   revalidar(entrada.id);
   return { ok: true };
 }
