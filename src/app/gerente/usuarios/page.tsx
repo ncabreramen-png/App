@@ -1,17 +1,33 @@
 import { crearClienteServidor } from "@/lib/supabase/servidor";
+import { exigirGerente } from "@/lib/sesion";
 import type { Usuario } from "@/lib/tipos";
+import FilaUsuario from "./FilaUsuario";
 import FormularioUsuario from "./FormularioUsuario";
 
 export const dynamic = "force-dynamic";
 
 export default async function Usuarios() {
+  const actual = await exigirGerente();
   const supabase = await crearClienteServidor();
-  const { data } = await supabase
-    .from("usuarios")
-    .select("*")
-    .order("nombre");
+
+  const [{ data }, { data: reportes }, { data: analisis }] = await Promise.all([
+    supabase.from("usuarios").select("*").order("nombre"),
+    supabase.from("reportes").select("reportado_por"),
+    supabase.from("analisis").select("creado_por"),
+  ]);
 
   const usuarios = (data ?? []) as Usuario[];
+
+  // Cuantos registros tiene cada uno a su nombre: con historial no se borra,
+  // se desactiva. Se calcula una vez para no consultar por fila.
+  const dependencias = new Map<string, number>();
+  for (const r of (reportes ?? []) as { reportado_por: string }[]) {
+    dependencias.set(r.reportado_por, (dependencias.get(r.reportado_por) ?? 0) + 1);
+  }
+  for (const a of (analisis ?? []) as { creado_por: string }[]) {
+    dependencias.set(a.creado_por, (dependencias.get(a.creado_por) ?? 0) + 1);
+  }
+
   const hayServiceRole = Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY);
 
   return (
@@ -41,20 +57,21 @@ export default async function Usuarios() {
               <th className="px-4 py-3">Correo</th>
               <th className="px-4 py-3">Disciplina</th>
               <th className="px-4 py-3">Rol</th>
+              <th className="px-4 py-3" />
             </tr>
           </thead>
           <tbody>
             {usuarios.map((u) => (
-              <tr key={u.id} className="border-b border-slate-100 last:border-0">
-                <td className="px-4 py-3 font-medium text-slate-900">{u.nombre}</td>
-                <td className="px-4 py-3 text-slate-600">{u.correo}</td>
-                <td className="px-4 py-3 text-slate-600">{u.disciplina}</td>
-                <td className="px-4 py-3 text-slate-600">{u.rol}</td>
-              </tr>
+              <FilaUsuario
+                key={u.id}
+                usuario={u}
+                esUnoMismo={u.id === actual.id}
+                dependencias={dependencias.get(u.id) ?? 0}
+              />
             ))}
             {usuarios.length === 0 && (
               <tr>
-                <td colSpan={4} className="px-4 py-6 text-center text-slate-500">
+                <td colSpan={5} className="px-4 py-6 text-center text-slate-500">
                   Sin usuarios registrados.
                 </td>
               </tr>
@@ -62,6 +79,12 @@ export default async function Usuarios() {
           </tbody>
         </table>
       </div>
+
+      <p className="text-xs text-slate-500">
+        <b>Desactivar</b> corta el acceso y conserva los reportes a nombre de esa
+        persona. <b>Borrar</b> solo está disponible para quien no dejó historial:
+        eliminar a alguien con reportes los dejaría sin autor.
+      </p>
     </div>
   );
 }

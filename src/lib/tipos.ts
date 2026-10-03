@@ -58,6 +58,8 @@ export type Usuario = {
   correo: string;
   disciplina: Disciplina;
   rol: Rol;
+  /** false = se le corto el acceso, pero su historial sigue firmado por el. */
+  activo: boolean;
   creado_en: string;
 };
 

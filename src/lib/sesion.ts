@@ -38,7 +38,13 @@ export async function exigirUsuario(): Promise<Usuario> {
     .maybeSingle();
 
   if (!data) redirect("/auth/sin-perfil");
-  return data as Usuario;
+
+  const usuario = data as Usuario;
+  // La cuenta tambien queda bloqueada en Auth, pero se corta aca ademas para
+  // que el corte sea inmediato y no dependa de que expire el token.
+  if (!usuario.activo) redirect("/auth/desactivado");
+
+  return usuario;
 }
 
 /** Exige rol Gerente. Un usuario de campo termina en su propia vista. */
