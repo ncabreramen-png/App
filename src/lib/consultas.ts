@@ -4,6 +4,7 @@ import type {
   FrenteConSemaforo,
   PuntoCurva,
   ReporteExpandido,
+  NoConformidadExpandida,
   TareaExpandida,
 } from "@/lib/tipos";
 
@@ -118,4 +119,27 @@ export async function obtenerTareas(): Promise<TareaExpandida[]> {
     .order("inicio");
 
   return (data ?? []) as unknown as TareaExpandida[];
+}
+
+/**
+ * Las no conformidades. El RLS ya limita la visibilidad a gerencia y calidad:
+ * quien no corresponde recibe una lista vacia, no un error.
+ */
+export async function obtenerNoConformidades(
+  estado?: string,
+): Promise<NoConformidadExpandida[]> {
+  const supabase = await crearClienteServidor();
+  let consulta = supabase
+    .from("no_conformidades")
+    .select(
+      `*,
+       frente:frentes_de_trabajo (id, nombre, frente_principal),
+       autor:usuarios!no_conformidades_creado_por_fkey (id, nombre, disciplina)`,
+    )
+    .order("numero", { ascending: false });
+
+  if (estado) consulta = consulta.eq("estado", estado);
+
+  const { data } = await consulta;
+  return (data ?? []) as unknown as NoConformidadExpandida[];
 }

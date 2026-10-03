@@ -47,6 +47,27 @@ export async function exigirUsuario(): Promise<Usuario> {
   return usuario;
 }
 
+/**
+ * Aseguramiento de calidad: quien levanta y cierra no conformidades.
+ * El rol Gerente queda fuera a proposito, aunque tenga esa disciplina: para la
+ * gerencia las no conformidades son de solo lectura.
+ */
+export function esCalidad(usuario: Usuario): boolean {
+  return usuario.disciplina === "Aseguramiento de calidad" && usuario.rol !== "Gerente";
+}
+
+/** Quien puede entrar a la pantalla de no conformidades. */
+export function veNoConformidades(usuario: Usuario): boolean {
+  return usuario.rol === "Gerente" || esCalidad(usuario);
+}
+
+/** Exige ser aseguramiento de calidad para poder escribir. */
+export async function exigirCalidad(): Promise<Usuario> {
+  const usuario = await exigirUsuario();
+  if (!esCalidad(usuario)) redirect("/no-conformidad");
+  return usuario;
+}
+
 /** Exige rol Gerente. Un usuario de campo termina en su propia vista. */
 export async function exigirGerente(): Promise<Usuario> {
   const usuario = await exigirUsuario();

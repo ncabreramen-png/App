@@ -37,6 +37,9 @@ export const ESTATUS_REPORTE = [
   "Rechazado",
 ] as const;
 
+export const ESTADOS_NC = ["Pendiente", "Atendida"] as const;
+export type EstadoNC = (typeof ESTADOS_NC)[number];
+
 export const SEMAFOROS = ["A tiempo", "Atraso leve", "Crítico"] as const;
 
 export type Disciplina = (typeof DISCIPLINAS)[number];
@@ -79,6 +82,32 @@ export type FrenteConSemaforo = Frente & {
   /** Si es > 0, el avance fisico sale del cronograma y no se edita a mano. */
   tareas: number;
 };
+
+/** No conformidad: la levanta y la cierra aseguramiento de calidad. */
+export type NoConformidad = {
+  id: string;
+  numero: number;
+  frente_de_trabajo_id: string;
+  descripcion: string;
+  archivos: Archivo[];
+  estado: EstadoNC;
+  detectada_en: string;
+  atendida_en: string | null;
+  comentario_cierre: string | null;
+  creado_por: string;
+  creado_en: string;
+  actualizado_en: string;
+};
+
+export type NoConformidadExpandida = NoConformidad & {
+  frente: Pick<Frente, "id" | "nombre" | "frente_principal"> | null;
+  autor: Pick<Usuario, "id" | "nombre" | "disciplina"> | null;
+};
+
+/** Codigo para citarla en correspondencia: NC-001. */
+export function codigoNC(numero: number): string {
+  return `NC-${String(numero).padStart(3, "0")}`;
+}
 
 /** Relevo de un profesional por otro en la misma disciplina. */
 export type Sustitucion = {

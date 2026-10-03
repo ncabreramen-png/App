@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { esCalidad } from "@/lib/sesion";
 import type { Usuario } from "@/lib/tipos";
 
 const ENLACES_GERENTE = [
@@ -9,6 +10,7 @@ const ENLACES_GERENTE = [
   { href: "/gerente/cierre", texto: "Cierre mensual" },
   { href: "/gerente/curva", texto: "Curva" },
   { href: "/analisis", texto: "Análisis" },
+  { href: "/no-conformidad", texto: "No conformidad" },
   { href: "/gerente/informe", texto: "Informe" },
   { href: "/gerente/usuarios", texto: "Usuarios" },
 ];
@@ -20,7 +22,12 @@ const ENLACES_CAMPO = [
 ];
 
 export default function Encabezado({ usuario }: { usuario: Usuario }) {
-  const enlaces = usuario.rol === "Gerente" ? ENLACES_GERENTE : ENLACES_CAMPO;
+  const enlaces =
+    usuario.rol === "Gerente"
+      ? ENLACES_GERENTE
+      : esCalidad(usuario)
+        ? [...ENLACES_CAMPO, { href: "/no-conformidad", texto: "No conformidad" }]
+        : ENLACES_CAMPO;
 
   return (
     <header className="no-imprimir sticky top-0 z-20 border-b border-marca-800 bg-marca-800 text-white">

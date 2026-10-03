@@ -4,7 +4,12 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { DISCIPLINAS, ROLES, type Usuario } from "@/lib/tipos";
 import PanelSustitucion from "./PanelSustitucion";
-import { borrarUsuario, cambiarActivo, editarUsuario } from "./acciones";
+import {
+  borrarUsuario,
+  cambiarActivo,
+  editarUsuario,
+  restablecerContrasena,
+} from "./acciones";
 
 /**
  * Una fila de la lista de usuarios, con sus acciones.
@@ -31,6 +36,8 @@ export default function FilaUsuario({
   const [editando, setEditando] = useState(false);
   const [confirmando, setConfirmando] = useState(false);
   const [sustituyendo, setSustituyendo] = useState(false);
+  const [cambiandoClave, setCambiandoClave] = useState(false);
+  const [clave, setClave] = useState("");
   const [nombre, setNombre] = useState(usuario.nombre);
   const [disciplina, setDisciplina] = useState<string>(usuario.disciplina);
   const [rol, setRol] = useState<string>(usuario.rol);
@@ -62,6 +69,61 @@ export default function FilaUsuario({
             candidatos={candidatos}
             onCerrar={() => setSustituyendo(false)}
           />
+        </td>
+      </tr>
+    );
+  }
+
+  if (cambiandoClave) {
+    return (
+      <tr className="border-b border-slate-100 last:border-0">
+        <td colSpan={5} className="px-4 py-3">
+          <div className="space-y-3 rounded-lg border border-slate-200 bg-slate-50 p-4">
+            <h3 className="font-semibold text-slate-900">
+              Nueva contraseña para {usuario.nombre}
+            </h3>
+            <p className="text-sm text-slate-600">
+              Se la tenés que entregar vos: la app no envía ningún correo. Y
+              esa persona todavía no puede cambiarla por su cuenta, así que
+              elegí una que puedas comunicarle de forma segura.
+            </p>
+            <input
+              type="text"
+              className="campo py-2"
+              value={clave}
+              onChange={(e) => setClave(e.target.value)}
+              placeholder="Mínimo 8 caracteres"
+            />
+            {error && <p className="text-sm text-red-700">{error}</p>}
+            <div className="flex gap-2">
+              <button
+                onClick={async () => {
+                  const ok = await correr(() =>
+                    restablecerContrasena({ id: usuario.id, contrasena: clave }),
+                  );
+                  if (ok) {
+                    window.alert(`Contraseña de ${usuario.nombre} actualizada.`);
+                    setCambiandoClave(false);
+                    setClave("");
+                  }
+                }}
+                disabled={ocupado || clave.length < 8}
+                className="boton py-2 text-sm"
+              >
+                {ocupado ? "Guardando…" : "Establecer contraseña"}
+              </button>
+              <button
+                onClick={() => {
+                  setCambiandoClave(false);
+                  setClave("");
+                  setError(null);
+                }}
+                className="boton-secundario py-2 text-sm"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
         </td>
       </tr>
     );
@@ -208,6 +270,12 @@ export default function FilaUsuario({
               className="text-xs font-medium text-marca-600 hover:underline"
             >
               Editar
+            </button>
+            <button
+              onClick={() => setCambiandoClave(true)}
+              className="text-xs font-medium text-marca-600 hover:underline"
+            >
+              Contraseña
             </button>
             {!esUnoMismo && (
               <>

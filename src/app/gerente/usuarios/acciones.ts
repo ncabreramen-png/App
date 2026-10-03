@@ -323,3 +323,37 @@ export async function sustituirUsuario(entrada: {
   }
   return { ok: true, sucesorId, aviso: corte.aviso };
 }
+
+/**
+ * Restablece la contrasena de otra persona. Solo la gerencia.
+ *
+ * No hay pantalla de recuperacion por correo, asi que este es el camino
+ * cuando alguien la olvida: la gerencia le asigna una y se la entrega.
+ */
+export async function restablecerContrasena(entrada: {
+  id: string;
+  contrasena: string;
+}): Promise<Resultado> {
+  await exigirGerente();
+
+  if (entrada.contrasena.length < 8) {
+    return { ok: false, error: "La contraseña debe tener al menos 8 caracteres." };
+  }
+
+  const admin = crearClienteAdmin();
+  if (!admin) {
+    return {
+      ok: false,
+      error: "Falta SUPABASE_SERVICE_ROLE_KEY en el servidor para cambiar contraseñas.",
+    };
+  }
+
+  const { error } = await admin.auth.admin.updateUserById(entrada.id, {
+    password: entrada.contrasena,
+  });
+
+  if (error) return { ok: false, error: error.message };
+
+  revalidar();
+  return { ok: true };
+}

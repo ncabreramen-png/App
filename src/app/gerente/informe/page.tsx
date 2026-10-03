@@ -3,7 +3,14 @@ import CurvaAvance from "@/components/CurvaAvance";
 import ResumenCurva from "@/components/ResumenCurva";
 import ListaArchivos from "@/components/ListaArchivos";
 import { InsigniaEstatus, InsigniaSemaforo, InsigniaTipo } from "@/components/Insignias";
-import { obtenerCurva, obtenerFrentesConSemaforo, obtenerReportes } from "@/lib/consultas";
+import {
+  obtenerCurva,
+  obtenerFrentesConSemaforo,
+  obtenerNoConformidades,
+  obtenerReportes,
+} from "@/lib/consultas";
+import { BUCKET_NC } from "@/lib/archivos";
+import { codigoNC } from "@/lib/tipos";
 import { firmarPorEntidad } from "@/lib/adjuntos.servidor";
 import { BUCKET_REPORTES } from "@/lib/archivos";
 import {
@@ -16,12 +23,15 @@ import {
 export const dynamic = "force-dynamic";
 
 export default async function Informe() {
-  const [frentes, { reportes }, curva] = await Promise.all([
+  const [frentes, { reportes }, curva, noConformidades] = await Promise.all([
     obtenerFrentesConSemaforo(),
     obtenerReportes(),
     obtenerCurva(),
+    obtenerNoConformidades(),
   ]);
   const adjuntos = await firmarPorEntidad(BUCKET_REPORTES, reportes);
+  const adjuntosNC = await firmarPorEntidad(BUCKET_NC, noConformidades);
+  const ncPendientes = noConformidades.filter((n) => n.estado === "Pendiente").length;
 
   const porFrente = new Map<string, ReporteExpandido[]>();
   for (const r of reportes) {
@@ -65,6 +75,51 @@ export default async function Informe() {
           <p className="text-xs text-slate-600">Alertas</p>
         </div>
       </section>
+
+      {noConformidades.length > 0 && (
+        <section className="space-y-3">
+          <h2 className="border-b border-slate-300 pb-1 text-lg font-bold text-marca-800">
+            No conformidades
+          </h2>
+          <p className="text-sm text-slate-600">
+            {noConformidades.length} registrada
+            {noConformidades.length === 1 ? "" : "s"}, {ncPendientes} pendiente
+            {ncPendientes === 1 ? "" : "s"} de atender.
+          </p>
+          {noConformidades.map((nc) => (
+            <div key={nc.id} className="evitar-corte tarjeta p-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h3 className="font-semibold text-slate-900">
+                  {codigoNC(nc.numero)} · {nc.frente?.nombre ?? "—"}
+                </h3>
+                <span
+                  className={`inline-flex shrink-0 items-center whitespace-nowrap rounded-full border px-2.5 py-0.5 text-xs font-semibold ${
+                    nc.estado === "Atendida"
+                      ? "border-green-300 bg-green-100 text-green-800"
+                      : "border-amber-300 bg-amber-100 text-amber-800"
+                  }`}
+                >
+                  {nc.estado}
+                </span>
+              </div>
+              <p className="mt-1 text-xs text-slate-500">
+                Detectada el {nc.detectada_en}
+                {nc.atendida_en ? ` · cerrada el ${nc.atendida_en}` : ""}
+              </p>
+              <p className="mt-2 whitespace-pre-wrap text-sm text-slate-700">
+                {nc.descripcion}
+              </p>
+              {nc.comentario_cierre && (
+                <p className="mt-2 text-sm text-green-800">
+                  <span className="font-semibold">Cómo se atendió: </span>
+                  {nc.comentario_cierre}
+                </p>
+              )}
+              <ListaArchivos archivos={adjuntosNC[nc.id] ?? []} />
+            </div>
+          ))}
+        </section>
+      )}
 
       {FRENTES_PRINCIPALES.map((grupo) => {
         const delGrupo = frentes.filter((f) => f.frente_principal === grupo);
