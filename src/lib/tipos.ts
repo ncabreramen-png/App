@@ -1,14 +1,18 @@
 import type { Archivo } from "@/lib/archivos";
 
 export const DISCIPLINAS = [
+  // Disciplinas de ingenieria, por frente de obra.
   "Hidráulico",
   "Estructural",
   "Civil",
   "Mecánico",
-  "Geotecnia",
-  "Calidad",
-  "Ambiental",
   "Eléctrico",
+  "Geotecnia",
+  // Transversales: reportan sobre cualquier frente.
+  "Medio ambiente",
+  "Seguridad y salud ocupacional",
+  "Gestión social",
+  "Aseguramiento de calidad",
 ] as const;
 
 export const ROLES = ["Campo", "Gerente"] as const;

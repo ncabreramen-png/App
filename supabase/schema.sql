@@ -11,14 +11,17 @@ create extension if not exists "pgcrypto";
 -- ----------------------------------------------------------------------------
 do $$ begin
   create type public.disciplina as enum (
-    'Hidráulico', 'Estructural', 'Civil', 'Mecánico', 'Geotecnia',
-    'Calidad', 'Ambiental', 'Eléctrico'
+    'Hidráulico', 'Estructural', 'Civil', 'Mecánico', 'Eléctrico',
+    'Geotecnia', 'Medio ambiente', 'Seguridad y salud ocupacional',
+    'Gestión social', 'Aseguramiento de calidad'
   );
 exception when duplicate_object then null; end $$;
 
 -- Para bases ya creadas: el bloque de arriba no se ejecuta si el tipo existe,
 -- asi que los valores agregados despues se suman aca uno por uno.
 alter type public.disciplina add value if not exists 'Civil';
+alter type public.disciplina add value if not exists 'Seguridad y salud ocupacional';
+alter type public.disciplina add value if not exists 'Gestión social';
 
 do $$ begin
   create type public.rol_usuario as enum ('Campo', 'Gerente');
@@ -168,7 +171,7 @@ begin
     new.id,
     coalesce(nullif(new.raw_user_meta_data ->> 'nombre', ''), split_part(new.email, '@', 1)),
     new.email,
-    coalesce(nullif(new.raw_user_meta_data ->> 'disciplina', ''), 'Calidad')::public.disciplina,
+    coalesce(nullif(new.raw_user_meta_data ->> 'disciplina', ''), 'Aseguramiento de calidad')::public.disciplina,
     coalesce(nullif(new.raw_user_meta_data ->> 'rol', ''), 'Campo')::public.rol_usuario
   )
   on conflict (id) do update

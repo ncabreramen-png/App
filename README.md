@@ -55,7 +55,7 @@ para el primero hay que usar Supabase directamente:
 2. En **User Metadata** poner:
 
 ```json
-{ "nombre": "Nombre Apellido", "disciplina": "Calidad", "rol": "Gerente" }
+{ "nombre": "Nombre Apellido", "disciplina": "Aseguramiento de calidad", "rol": "Gerente" }
 ```
 
 Un trigger (`handle_new_user`) crea automáticamente la fila en

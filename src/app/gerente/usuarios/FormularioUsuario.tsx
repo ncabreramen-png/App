@@ -15,7 +15,10 @@ export default function FormularioUsuario() {
     setError(null);
     setEnviando(true);
 
-    const datos = Object.fromEntries(new FormData(e.currentTarget));
+    // Se guarda la referencia antes del await: React anula currentTarget al
+    // terminar el manejador, y usarlo despues lanza.
+    const form = e.currentTarget;
+    const datos = Object.fromEntries(new FormData(form));
 
     const respuesta = await fetch("/api/usuarios", {
       method: "POST",
@@ -31,7 +34,7 @@ export default function FormularioUsuario() {
       return;
     }
 
-    e.currentTarget.reset();
+    form.reset();
     setAbierto(false);
     router.refresh();
   }
