@@ -1,5 +1,10 @@
 import { crearClienteServidor } from "@/lib/supabase/servidor";
-import type { FrenteConSemaforo, PuntoCurva, ReporteExpandido } from "@/lib/tipos";
+import type {
+  AnalisisExpandido,
+  FrenteConSemaforo,
+  PuntoCurva,
+  ReporteExpandido,
+} from "@/lib/tipos";
 
 export const SELECCION_REPORTE = `
   *,
@@ -57,4 +62,48 @@ export async function obtenerCurva(): Promise<PuntoCurva[]> {
     .order("periodo");
 
   return (data ?? []) as PuntoCurva[];
+}
+
+const SELECCION_ANALISIS = `
+  *,
+  frente:frentes_de_trabajo (id, nombre, frente_principal),
+  autor:usuarios!analisis_creado_por_fkey (id, nombre, disciplina),
+  accesos:analisis_accesos (usuario:usuarios (id, nombre, disciplina, rol))
+`;
+
+type FilaAcceso = { usuario: AnalisisExpandido["compartido_con"][number] | null };
+
+function normalizar(fila: Record<string, unknown>): AnalisisExpandido {
+  const accesos = (fila.accesos ?? []) as FilaAcceso[];
+  return {
+    ...(fila as unknown as AnalisisExpandido),
+    compartido_con: accesos
+      .map((a) => a.usuario)
+      .filter((u): u is AnalisisExpandido["compartido_con"][number] => Boolean(u)),
+  };
+}
+
+/**
+ * El RLS ya limita a lo propio mas lo compartido: no hace falta filtrar aca,
+ * y filtrar de mas ocultaria lo que a uno le compartieron.
+ */
+export async function obtenerAnalisis(): Promise<AnalisisExpandido[]> {
+  const supabase = await crearClienteServidor();
+  const { data } = await supabase
+    .from("analisis")
+    .select(SELECCION_ANALISIS)
+    .order("creado_en", { ascending: false });
+
+  return ((data ?? []) as unknown as Record<string, unknown>[]).map(normalizar);
+}
+
+export async function obtenerUnAnalisis(id: string): Promise<AnalisisExpandido | null> {
+  const supabase = await crearClienteServidor();
+  const { data } = await supabase
+    .from("analisis")
+    .select(SELECCION_ANALISIS)
+    .eq("id", id)
+    .maybeSingle();
+
+  return data ? normalizar(data as unknown as Record<string, unknown>) : null;
 }

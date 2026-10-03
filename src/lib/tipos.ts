@@ -1,3 +1,5 @@
+import type { Archivo } from "@/lib/archivos";
+
 export const DISCIPLINAS = [
   "Hidráulico",
   "Estructural",
@@ -70,6 +72,25 @@ export type FrenteConSemaforo = Frente & {
   semaforo: Semaforo;
 };
 
+/** Analisis de gerencia: contenido privado que se comparte eligiendo usuarios. */
+export type Analisis = {
+  id: string;
+  titulo: string;
+  descripcion: string;
+  archivos: Archivo[];
+  frente_de_trabajo_id: string | null;
+  creado_por: string;
+  creado_en: string;
+  actualizado_en: string;
+};
+
+export type AnalisisExpandido = Analisis & {
+  frente: Pick<Frente, "id" | "nombre" | "frente_principal"> | null;
+  autor: Pick<Usuario, "id" | "nombre" | "disciplina"> | null;
+  /** Usuarios con los que se compartio. Vacio = privado. */
+  compartido_con: Pick<Usuario, "id" | "nombre" | "disciplina" | "rol">[];
+};
+
 /** Un mes de la curva S del proyecto. */
 export type PuntoCurva = {
   id: string;
@@ -87,7 +108,9 @@ export type Reporte = {
   disciplina: Disciplina;
   tipo_de_reporte: TipoDeReporte;
   descripcion: string;
+  /** OBSOLETO: se conserva en la base, la aplicacion lee "archivos". */
   fotos: string[];
+  archivos: Archivo[];
   estatus: EstatusReporte;
   comentario_de_aprobacion: string | null;
   reportado_por: string;

@@ -42,11 +42,3 @@ export async function comprimirImagen(archivo: File): Promise<File> {
   }
 }
 
-/** Nombre de archivo seguro para Supabase Storage. */
-export function nombreSeguro(nombre: string): string {
-  return nombre
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-zA-Z0-9._-]/g, "_")
-    .slice(-60);
-}

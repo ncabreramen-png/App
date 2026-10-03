@@ -5,19 +5,11 @@ import { useMemo, useState } from "react";
 import SelectorArchivos from "@/components/SelectorArchivos";
 import { crearClienteNavegador } from "@/lib/supabase/cliente";
 import { subirArchivos } from "@/lib/subir";
-import { BUCKET_REPORTES, LIMITE_REPORTE, type Archivo } from "@/lib/archivos";
-import {
-  FRENTES_PRINCIPALES,
-  TIPOS_DE_REPORTE,
-  TIPOS_QUE_NOTIFICAN,
-  type Frente,
-  type TipoDeReporte,
-} from "@/lib/tipos";
-import { crearReporte } from "./acciones";
+import { BUCKET_ANALISIS, LIMITE_ANALISIS, type Archivo } from "@/lib/archivos";
+import { FRENTES_PRINCIPALES, type Frente } from "@/lib/tipos";
+import { crearAnalisis } from "../acciones";
 
-const MAX_FOTOS = 8;
-
-export default function FormularioReporte({
+export default function FormularioAnalisis({
   frentes,
   usuarioId,
 }: {
@@ -26,9 +18,9 @@ export default function FormularioReporte({
 }) {
   const router = useRouter();
 
-  const [frenteId, setFrenteId] = useState("");
-  const [tipo, setTipo] = useState<TipoDeReporte>("Avance");
+  const [titulo, setTitulo] = useState("");
   const [descripcion, setDescripcion] = useState("");
+  const [frenteId, setFrenteId] = useState("");
   const [archivos, setArchivos] = useState<File[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [paso, setPaso] = useState<string | null>(null);
@@ -43,61 +35,56 @@ export default function FormularioReporte({
     [frentes],
   );
 
-  const descripcionVacia = descripcion.trim().length === 0;
+  const sinTitulo = titulo.trim().length === 0;
 
   async function enviar(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
 
-    if (descripcionVacia) {
-      setError("La descripción no puede estar vacía.");
-      return;
-    }
-    if (!frenteId) {
-      setError("Seleccioná un frente de trabajo.");
+    if (sinTitulo) {
+      setError("El título no puede estar vacío.");
       return;
     }
 
     setEnviando(true);
 
     try {
+      // El id se genera antes de subir: la ruta en Storage lo necesita para
+      // que luego el permiso de lectura se resuelva por carpeta.
+      const id = crypto.randomUUID();
       let adjuntos: Archivo[] = [];
 
       if (archivos.length > 0) {
         const supabase = crearClienteNavegador();
         adjuntos = await subirArchivos(
           supabase,
-          BUCKET_REPORTES,
-          `${usuarioId}/${crypto.randomUUID()}`,
+          BUCKET_ANALISIS,
+          `${usuarioId}/${id}`,
           archivos,
           setPaso,
         );
       }
 
-      setPaso("Guardando el reporte…");
-      const resultado = await crearReporte({
-        frenteId,
-        tipo,
+      setPaso("Guardando el análisis…");
+      const r = await crearAnalisis({
+        id,
+        titulo,
         descripcion,
+        frenteId: frenteId || null,
         archivos: adjuntos,
       });
 
-      if (!resultado.ok) {
-        setError(resultado.error);
+      if (!r.ok) {
+        setError(r.error);
         setEnviando(false);
         setPaso(null);
         return;
       }
 
-      if (resultado.avisoCorreo) {
-        // El reporte quedo guardado: se avisa pero no se bloquea al usuario.
-        window.alert(resultado.avisoCorreo);
-      }
-
-      router.replace("/campo");
+      router.replace(`/analisis/${r.id}`);
       router.refresh();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Ocurrió un error inesperado.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Ocurrió un error inesperado.");
       setEnviando(false);
       setPaso(null);
     }
@@ -106,17 +93,30 @@ export default function FormularioReporte({
   return (
     <form onSubmit={enviar} className="tarjeta space-y-5 p-4">
       <div>
+        <label htmlFor="titulo" className="etiqueta">
+          Título
+        </label>
+        <input
+          id="titulo"
+          className="campo"
+          required
+          value={titulo}
+          onChange={(e) => setTitulo(e.target.value)}
+          placeholder="Ej: Revisión de planos estructurales PTAR"
+        />
+      </div>
+
+      <div>
         <label htmlFor="frente" className="etiqueta">
-          Frente de trabajo
+          Frente de trabajo — opcional
         </label>
         <select
           id="frente"
           className="campo"
-          required
           value={frenteId}
           onChange={(e) => setFrenteId(e.target.value)}
         >
-          <option value="">Seleccioná un frente…</option>
+          <option value="">Proyecto completo</option>
           {porGrupo.map(({ grupo, items }) => (
             <optgroup key={grupo} label={grupo}>
               {items.map((f) => (
@@ -130,67 +130,37 @@ export default function FormularioReporte({
       </div>
 
       <div>
-        <label htmlFor="tipo" className="etiqueta">
-          Tipo de reporte
-        </label>
-        <select
-          id="tipo"
-          className="campo"
-          value={tipo}
-          onChange={(e) => setTipo(e.target.value as TipoDeReporte)}
-        >
-          {TIPOS_DE_REPORTE.map((t) => (
-            <option key={t} value={t}>
-              {t}
-            </option>
-          ))}
-        </select>
-        {tipo === "Orden de cambio" && (
-          <p className="mt-1.5 text-xs text-amber-700">
-            Queda como <b>Pendiente</b> hasta que el gerente la apruebe o rechace.
-          </p>
-        )}
-        {TIPOS_QUE_NOTIFICAN.includes(tipo) && (
-          <p className="mt-1 text-xs text-slate-500">
-            Se le envía un correo al gerente al guardar.
-          </p>
-        )}
-      </div>
-
-      <div>
         <label htmlFor="descripcion" className="etiqueta">
-          Descripción
+          Análisis
         </label>
         <textarea
           id="descripcion"
           className="campo min-h-32"
-          required
           value={descripcion}
           onChange={(e) => setDescripcion(e.target.value)}
-          placeholder="Qué se observó, dónde y qué se necesita."
+          placeholder="Observaciones, conclusiones, qué hay que revisar."
         />
       </div>
 
       <SelectorArchivos
         archivos={archivos}
         onCambio={setArchivos}
-        limiteBytes={LIMITE_REPORTE}
+        limiteBytes={LIMITE_ANALISIS}
         deshabilitado={enviando}
       />
+
+      <p className="rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600">
+        Se guarda como <b>privado</b>. Solo vos lo vas a ver hasta que elijas con
+        quién compartirlo, desde la pantalla del análisis.
+      </p>
 
       {error && (
         <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
       )}
 
-      <div className="flex items-center gap-3">
-        <button
-          type="submit"
-          className="boton flex-1"
-          disabled={enviando || descripcionVacia || !frenteId}
-        >
-          {enviando ? (paso ?? "Enviando…") : "Enviar reporte"}
-        </button>
-      </div>
+      <button type="submit" className="boton w-full" disabled={enviando || sinTitulo}>
+        {enviando ? (paso ?? "Guardando…") : "Guardar análisis"}
+      </button>
     </form>
   );
 }

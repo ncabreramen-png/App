@@ -6,6 +6,7 @@ const ENLACES_GERENTE = [
   { href: "/gerente/aprobaciones", texto: "Aprobaciones" },
   { href: "/gerente/reportes", texto: "Reportes" },
   { href: "/gerente/curva", texto: "Curva" },
+  { href: "/analisis", texto: "Análisis" },
   { href: "/gerente/informe", texto: "Informe" },
   { href: "/gerente/usuarios", texto: "Usuarios" },
 ];
@@ -13,6 +14,7 @@ const ENLACES_GERENTE = [
 const ENLACES_CAMPO = [
   { href: "/campo", texto: "Mis reportes" },
   { href: "/campo/nuevo", texto: "Nuevo reporte" },
+  { href: "/analisis", texto: "Análisis" },
 ];
 
 export default function Encabezado({ usuario }: { usuario: Usuario }) {

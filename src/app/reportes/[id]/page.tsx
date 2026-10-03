@@ -6,7 +6,8 @@ import PanelAprobacion from "@/app/gerente/aprobaciones/PanelAprobacion";
 import { crearClienteServidor } from "@/lib/supabase/servidor";
 import { exigirUsuario } from "@/lib/sesion";
 import { SELECCION_REPORTE } from "@/lib/consultas";
-import { firmarFotos } from "@/lib/fotos";
+import { firmarArchivos } from "@/lib/adjuntos.servidor";
+import { BUCKET_REPORTES } from "@/lib/archivos";
 import { formatearFecha, type ReporteExpandido } from "@/lib/tipos";
 
 export const dynamic = "force-dynamic";
@@ -30,7 +31,7 @@ export default async function DetalleReporte({
   if (!data) notFound();
 
   const reporte = data as unknown as ReporteExpandido;
-  const fotos = await firmarFotos(reporte.fotos);
+  const adjuntos = await firmarArchivos(BUCKET_REPORTES, reporte.archivos);
   const esGerente = usuario.rol === "Gerente";
   const puedeResolver = esGerente && reporte.estatus === "Pendiente";
 
@@ -47,7 +48,7 @@ export default async function DetalleReporte({
 
         <TarjetaReporte
           reporte={reporte}
-          fotos={fotos}
+          archivos={adjuntos}
           mostrarAutor={esGerente}
           enlazar={false}
           pie={puedeResolver ? <PanelAprobacion reporteId={reporte.id} /> : undefined}

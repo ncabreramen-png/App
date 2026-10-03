@@ -1,13 +1,14 @@
 import TarjetaReporte from "@/components/TarjetaReporte";
 import { obtenerReportes } from "@/lib/consultas";
-import { firmarFotosPorReporte } from "@/lib/fotos";
+import { firmarPorEntidad } from "@/lib/adjuntos.servidor";
+import { BUCKET_REPORTES } from "@/lib/archivos";
 import PanelAprobacion from "./PanelAprobacion";
 
 export const dynamic = "force-dynamic";
 
 export default async function Aprobaciones() {
   const { reportes, error } = await obtenerReportes({ estatus: "Pendiente" });
-  const fotos = await firmarFotosPorReporte(reportes);
+  const adjuntos = await firmarPorEntidad(BUCKET_REPORTES, reportes);
 
   return (
     <div className="space-y-4">
@@ -33,7 +34,7 @@ export default async function Aprobaciones() {
           <TarjetaReporte
             key={r.id}
             reporte={r}
-            fotos={fotos[r.id] ?? []}
+            archivos={adjuntos[r.id] ?? []}
             mostrarAutor
             pie={<PanelAprobacion reporteId={r.id} />}
           />

@@ -1,10 +1,11 @@
 import BotonImprimir from "@/components/BotonImprimir";
 import CurvaAvance from "@/components/CurvaAvance";
 import ResumenCurva from "@/components/ResumenCurva";
-import GaleriaFotos from "@/components/GaleriaFotos";
+import ListaArchivos from "@/components/ListaArchivos";
 import { InsigniaEstatus, InsigniaSemaforo, InsigniaTipo } from "@/components/Insignias";
 import { obtenerCurva, obtenerFrentesConSemaforo, obtenerReportes } from "@/lib/consultas";
-import { firmarFotosPorReporte } from "@/lib/fotos";
+import { firmarPorEntidad } from "@/lib/adjuntos.servidor";
+import { BUCKET_REPORTES } from "@/lib/archivos";
 import {
   FRENTES_PRINCIPALES,
   esAlerta,
@@ -20,7 +21,7 @@ export default async function Informe() {
     obtenerReportes(),
     obtenerCurva(),
   ]);
-  const fotos = await firmarFotosPorReporte(reportes);
+  const adjuntos = await firmarPorEntidad(BUCKET_REPORTES, reportes);
 
   const porFrente = new Map<string, ReporteExpandido[]>();
   for (const r of reportes) {
@@ -136,7 +137,7 @@ export default async function Informe() {
                               {r.comentario_de_aprobacion}
                             </p>
                           )}
-                          <GaleriaFotos urls={fotos[r.id] ?? []} />
+                          <ListaArchivos archivos={adjuntos[r.id] ?? []} />
                         </li>
                       ))}
                     </ul>

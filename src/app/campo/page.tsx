@@ -2,7 +2,8 @@ import Link from "next/link";
 import TarjetaReporte from "@/components/TarjetaReporte";
 import { crearClienteServidor } from "@/lib/supabase/servidor";
 import { exigirUsuario } from "@/lib/sesion";
-import { firmarFotosPorReporte } from "@/lib/fotos";
+import { firmarPorEntidad } from "@/lib/adjuntos.servidor";
+import { BUCKET_REPORTES } from "@/lib/archivos";
 import type { ReporteExpandido } from "@/lib/tipos";
 
 export const dynamic = "force-dynamic";
@@ -25,7 +26,7 @@ export default async function MisReportes() {
     .order("fecha", { ascending: false });
 
   const reportes = (data ?? []) as unknown as ReporteExpandido[];
-  const fotos = await firmarFotosPorReporte(reportes);
+  const adjuntos = await firmarPorEntidad(BUCKET_REPORTES, reportes);
 
   return (
     <div className="space-y-4">
@@ -53,7 +54,7 @@ export default async function MisReportes() {
 
       <div className="space-y-3">
         {reportes.map((r) => (
-          <TarjetaReporte key={r.id} reporte={r} fotos={fotos[r.id] ?? []} />
+          <TarjetaReporte key={r.id} reporte={r} archivos={adjuntos[r.id] ?? []} />
         ))}
       </div>
     </div>

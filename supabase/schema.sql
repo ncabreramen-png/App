@@ -74,7 +74,10 @@ create table if not exists public.reportes (
   disciplina                public.disciplina not null,
   tipo_de_reporte           public.tipo_reporte not null,
   descripcion               text not null check (length(btrim(descripcion)) > 0),
+  -- OBSOLETA: se conserva por compatibilidad, la aplicacion lee "archivos".
   fotos                     text[] not null default '{}',
+  -- Adjuntos con metadatos: [{ruta, nombre, tipo, tamano}].
+  archivos                  jsonb not null default '[]'::jsonb,
   estatus                   public.estatus_reporte not null default 'Registrado',
   comentario_de_aprobacion  text,
   reportado_por             uuid not null references public.usuarios (id) on delete restrict,
@@ -105,6 +108,32 @@ create table if not exists public.curva_avance (
 );
 
 create index if not exists curva_avance_periodo_idx on public.curva_avance (periodo);
+
+-- analisis: contenido que crea la gerencia. Privado por defecto; se comparte
+-- eligiendo usuarios uno por uno en analisis_accesos.
+create table if not exists public.analisis (
+  id                    uuid primary key default gen_random_uuid(),
+  titulo                text not null check (length(btrim(titulo)) > 0),
+  descripcion           text not null default '',
+  archivos              jsonb not null default '[]'::jsonb,
+  frente_de_trabajo_id  uuid references public.frentes_de_trabajo (id) on delete set null,
+  creado_por            uuid not null references public.usuarios (id) on delete restrict,
+  creado_en             timestamptz not null default now(),
+  actualizado_en        timestamptz not null default now()
+);
+
+create index if not exists analisis_autor_idx on public.analisis (creado_por);
+create index if not exists analisis_fecha_idx on public.analisis (creado_en desc);
+
+create table if not exists public.analisis_accesos (
+  analisis_id   uuid not null references public.analisis (id) on delete cascade,
+  usuario_id    uuid not null references public.usuarios (id) on delete cascade,
+  otorgado_en   timestamptz not null default now(),
+  primary key (analisis_id, usuario_id)
+);
+
+create index if not exists analisis_accesos_usuario_idx
+  on public.analisis_accesos (usuario_id);
 
 -- ----------------------------------------------------------------------------
 -- 3. Funciones auxiliares
@@ -223,6 +252,59 @@ create trigger curva_before_update
   before update on public.curva_avance
   for each row execute function public.curva_tocar_actualizado();
 
+create or replace function public.analisis_tocar_actualizado()
+returns trigger language plpgsql as $$
+begin
+  new.actualizado_en := now();
+  return new;
+end;
+$$;
+
+drop trigger if exists analisis_before_update on public.analisis;
+create trigger analisis_before_update
+  before update on public.analisis
+  for each row execute function public.analisis_tocar_actualizado();
+
+-- SECURITY DEFINER para que las policies de analisis puedan consultar analisis
+-- sin recursion de RLS, y para poder reusarlas desde storage.
+create or replace function public.es_dueno_analisis(p_analisis uuid)
+returns boolean language sql stable security definer set search_path = public as $$
+  select exists (
+    select 1 from public.analisis a
+    where a.id = p_analisis and a.creado_por = auth.uid()
+  );
+$$;
+
+create or replace function public.puede_ver_analisis(p_analisis uuid)
+returns boolean language sql stable security definer set search_path = public as $$
+  select exists (
+    select 1 from public.analisis a
+    where a.id = p_analisis
+      and (
+        a.creado_por = auth.uid()
+        or exists (
+          select 1 from public.analisis_accesos ac
+          where ac.analisis_id = a.id and ac.usuario_id = auth.uid()
+        )
+      )
+  );
+$$;
+
+-- Version tolerante para storage: la carpeta llega como texto y podria no ser
+-- un uuid valido; sin el guardia, el cast lanzaria dentro de la policy.
+create or replace function public.puede_ver_analisis_txt(p text)
+returns boolean language plpgsql stable security definer set search_path = public as $$
+declare v uuid;
+begin
+  begin
+    v := p::uuid;
+  exception when others then
+    return false;
+  end;
+  return public.puede_ver_analisis(v);
+end;
+$$;
+
 -- ----------------------------------------------------------------------------
 -- 4. Vista del semaforo (regla de negocio 3)
 --    Cuenta reportes de tipo 'Problemática' O con estatus 'Rechazado'.
@@ -263,6 +345,8 @@ grant select on public.frentes_semaforo to authenticated;
 -- 5. Row Level Security
 -- ----------------------------------------------------------------------------
 alter table public.curva_avance       enable row level security;
+alter table public.analisis           enable row level security;
+alter table public.analisis_accesos   enable row level security;
 alter table public.usuarios            enable row level security;
 alter table public.frentes_de_trabajo  enable row level security;
 alter table public.reportes            enable row level security;
@@ -324,13 +408,83 @@ create policy curva_escritura_gerente on public.curva_avance
   using (public.es_gerente())
   with check (public.es_gerente());
 
+-- analisis --------------------------------------------------------------
+drop policy if exists analisis_select on public.analisis;
+create policy analisis_select on public.analisis
+  for select to authenticated
+  using (creado_por = auth.uid() or public.puede_ver_analisis(id));
+
+drop policy if exists analisis_insert on public.analisis;
+create policy analisis_insert on public.analisis
+  for insert to authenticated
+  with check (creado_por = auth.uid() and public.es_gerente());
+
+drop policy if exists analisis_update on public.analisis;
+create policy analisis_update on public.analisis
+  for update to authenticated
+  using (creado_por = auth.uid())
+  with check (creado_por = auth.uid());
+
+drop policy if exists analisis_delete on public.analisis;
+create policy analisis_delete on public.analisis
+  for delete to authenticated
+  using (creado_por = auth.uid());
+
+drop policy if exists accesos_select on public.analisis_accesos;
+create policy accesos_select on public.analisis_accesos
+  for select to authenticated
+  using (usuario_id = auth.uid() or public.es_dueno_analisis(analisis_id));
+
+drop policy if exists accesos_insert on public.analisis_accesos;
+create policy accesos_insert on public.analisis_accesos
+  for insert to authenticated
+  with check (public.es_dueno_analisis(analisis_id));
+
+drop policy if exists accesos_delete on public.analisis_accesos;
+create policy accesos_delete on public.analisis_accesos
+  for delete to authenticated
+  using (public.es_dueno_analisis(analisis_id));
+
 -- ----------------------------------------------------------------------------
 -- 6. Storage: bucket privado para las fotos
 --    Convencion de ruta: <user_id>/<carpeta-reporte>/<archivo>
 -- ----------------------------------------------------------------------------
-insert into storage.buckets (id, name, public)
-values ('reportes-fotos', 'reportes-fotos', false)
-on conflict (id) do nothing;
+insert into storage.buckets (id, name, public, file_size_limit)
+values ('reportes-fotos', 'reportes-fotos', false, 26214400)
+on conflict (id) do update set file_size_limit = excluded.file_size_limit;
+
+insert into storage.buckets (id, name, public, file_size_limit)
+values ('analisis-archivos', 'analisis-archivos', false, 52428800)
+on conflict (id) do update set file_size_limit = excluded.file_size_limit;
+
+-- Ruta: <usuario>/<analisis>/<archivo>. El autor sube a su propia carpeta; la
+-- lectura de terceros se resuelve mirando la carpeta del analisis.
+drop policy if exists analisis_subir on storage.objects;
+create policy analisis_subir on storage.objects
+  for insert to authenticated
+  with check (
+    bucket_id = 'analisis-archivos'
+    and (storage.foldername(name))[1] = auth.uid()::text
+  );
+
+drop policy if exists analisis_leer on storage.objects;
+create policy analisis_leer on storage.objects
+  for select to authenticated
+  using (
+    bucket_id = 'analisis-archivos'
+    and (
+      (storage.foldername(name))[1] = auth.uid()::text
+      or public.puede_ver_analisis_txt((storage.foldername(name))[2])
+    )
+  );
+
+drop policy if exists analisis_borrar on storage.objects;
+create policy analisis_borrar on storage.objects
+  for delete to authenticated
+  using (
+    bucket_id = 'analisis-archivos'
+    and (storage.foldername(name))[1] = auth.uid()::text
+  );
 
 drop policy if exists fotos_insert_propio on storage.objects;
 create policy fotos_insert_propio on storage.objects

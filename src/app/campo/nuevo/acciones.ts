@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { crearClienteServidor } from "@/lib/supabase/servidor";
 import { exigirUsuario } from "@/lib/sesion";
 import { notificarAlGerente } from "@/lib/correo";
+import type { Archivo } from "@/lib/archivos";
 import {
   TIPOS_DE_REPORTE,
   TIPOS_QUE_NOTIFICAN,
@@ -18,7 +19,7 @@ export async function crearReporte(entrada: {
   frenteId: string;
   tipo: string;
   descripcion: string;
-  fotos: string[];
+  archivos: Archivo[];
 }): Promise<ResultadoCreacion> {
   const usuario = await exigirUsuario();
 
@@ -43,7 +44,7 @@ export async function crearReporte(entrada: {
       disciplina: usuario.disciplina,
       tipo_de_reporte: entrada.tipo as TipoDeReporte,
       descripcion,
-      fotos: entrada.fotos,
+      archivos: entrada.archivos,
       reportado_por: usuario.id,
     })
     .select("id, estatus, fecha, frente:frentes_de_trabajo(nombre, frente_principal)")

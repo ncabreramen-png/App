@@ -120,6 +120,9 @@ reportes ajenos ni siquiera consultando la API directamente.
   (Colectores / Estaciones de bombeo / PTAR), con hoja de estilos de
   impresión para exportar a PDF.
 - `/gerente/usuarios` — alta y listado del equipo.
+- `/analisis` — análisis de gerencia. Los crea el gerente con adjuntos de
+  cualquier tipo y nacen **privados**; se comparten eligiendo usuarios uno por
+  uno. Quien los recibe los ve en esta misma pantalla, en modo lectura.
 - `/reportes/[id]` — detalle de un reporte; es el destino de los links de los
   correos.
 
@@ -133,12 +136,26 @@ Frente 3 Chilama 2 norte · Frente 4 Chilama oeste · Frente 5 Conchalio
 
 **PTAR:** Electromecánico · Eléctrico · Civil · Hidráulico
 
-## Fotos
+## Adjuntos
 
-El bucket `reportes-fotos` es **privado**. Las imágenes se comprimen en el
-celular antes de subirse (lado máximo 1600 px, JPEG) para que el envío sea
-rápido con mala señal, y se muestran con URLs firmadas de una hora generadas
-en el servidor con la sesión del usuario.
+Cualquier perfil puede adjuntar **fotos, PDF, Excel, Word y PowerPoint**, tanto
+en un reporte de campo como en un análisis de gerencia. Las imágenes se
+comprimen en el celular antes de subirse (lado máximo 1600 px, JPEG) para que
+el envío sea rápido con mala señal; los documentos se suben tal cual, porque
+recomprimirlos los rompería. Las imágenes se muestran como miniatura y el resto
+como archivo descargable.
+
+Hay dos buckets, los dos **privados**, servidos con URLs firmadas de una hora
+generadas con la sesión del usuario:
+
+| Bucket | Para qué | Tope por archivo |
+|---|---|---|
+| `reportes-fotos` | adjuntos de los reportes de campo | 25 MB |
+| `analisis-archivos` | adjuntos de los análisis de gerencia | 50 MB |
+
+La ruta de un análisis es `<usuario>/<análisis>/<archivo>`, de modo que el
+permiso de lectura de quien lo recibe se resuelve mirando la carpeta: el
+aislamiento vale también para los archivos, no solo para las filas.
 
 ## Notas de diseño
 

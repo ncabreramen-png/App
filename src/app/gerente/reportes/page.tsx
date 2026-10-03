@@ -1,7 +1,8 @@
 import TarjetaReporte from "@/components/TarjetaReporte";
 import { crearClienteServidor } from "@/lib/supabase/servidor";
 import { obtenerReportes } from "@/lib/consultas";
-import { firmarFotosPorReporte } from "@/lib/fotos";
+import { firmarPorEntidad } from "@/lib/adjuntos.servidor";
+import { BUCKET_REPORTES } from "@/lib/archivos";
 import type { Frente } from "@/lib/tipos";
 import Filtros from "./Filtros";
 
@@ -36,7 +37,7 @@ export default async function TodosLosReportes({
     obtenerReportes(filtros),
   ]);
 
-  const fotos = await firmarFotosPorReporte(reportes);
+  const adjuntos = await firmarPorEntidad(BUCKET_REPORTES, reportes);
 
   return (
     <div className="space-y-4">
@@ -64,7 +65,7 @@ export default async function TodosLosReportes({
           <TarjetaReporte
             key={r.id}
             reporte={r}
-            fotos={fotos[r.id] ?? []}
+            archivos={adjuntos[r.id] ?? []}
             mostrarAutor
           />
         ))}

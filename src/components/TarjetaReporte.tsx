@@ -1,11 +1,12 @@
 import Link from "next/link";
-import GaleriaFotos from "@/components/GaleriaFotos";
+import ListaArchivos from "@/components/ListaArchivos";
 import { InsigniaEstatus, InsigniaTipo } from "@/components/Insignias";
+import type { ArchivoFirmado } from "@/lib/adjuntos.servidor";
 import { formatearFecha, type ReporteExpandido } from "@/lib/tipos";
 
 type Props = {
   reporte: ReporteExpandido;
-  fotos?: string[];
+  archivos?: ArchivoFirmado[];
   /** El gerente ve quien reporto; el profesional de campo no lo necesita. */
   mostrarAutor?: boolean;
   enlazar?: boolean;
@@ -15,7 +16,7 @@ type Props = {
 
 export default function TarjetaReporte({
   reporte,
-  fotos = [],
+  archivos = [],
   mostrarAutor = false,
   enlazar = true,
   pie,
@@ -58,7 +59,7 @@ export default function TarjetaReporte({
         </p>
       )}
 
-      <GaleriaFotos urls={fotos} />
+      <ListaArchivos archivos={archivos} />
 
       {pie}
     </article>
