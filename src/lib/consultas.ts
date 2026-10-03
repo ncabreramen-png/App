@@ -4,6 +4,7 @@ import type {
   FrenteConSemaforo,
   PuntoCurva,
   ReporteExpandido,
+  TareaExpandida,
 } from "@/lib/tipos";
 
 export const SELECCION_REPORTE = `
@@ -106,4 +107,15 @@ export async function obtenerUnAnalisis(id: string): Promise<AnalisisExpandido |
     .maybeSingle();
 
   return data ? normalizar(data as unknown as Record<string, unknown>) : null;
+}
+
+/** Todas las tareas del cronograma, agrupables por frente. */
+export async function obtenerTareas(): Promise<TareaExpandida[]> {
+  const supabase = await crearClienteServidor();
+  const { data } = await supabase
+    .from("tareas")
+    .select("*, frente:frentes_de_trabajo (id, nombre, frente_principal)")
+    .order("inicio");
+
+  return (data ?? []) as unknown as TareaExpandida[];
 }

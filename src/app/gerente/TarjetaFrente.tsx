@@ -19,7 +19,9 @@ export default function TarjetaFrente({ frente }: { frente: FrenteConSemaforo })
     setError(null);
     const r = await actualizarAvances({
       frenteId: frente.id,
-      avanceFisico: Number(fisico),
+      // Con tareas cargadas el fisico lo manda el cronograma: se reenvia el
+      // valor que ya estaba para no sobrescribirlo con lo que muestra la vista.
+      avanceFisico: frente.tareas > 0 ? Number(frente.avance_fisico) : Number(fisico),
       avanceFinanciero: Number(financiero),
     });
     setGuardando(false);
@@ -39,18 +41,25 @@ export default function TarjetaFrente({ frente }: { frente: FrenteConSemaforo })
 
       {editando ? (
         <div className="space-y-2">
-          <label className="block text-xs text-slate-600">
-            Avance físico (%)
-            <input
-              type="number"
-              min={0}
-              max={100}
-              step="0.1"
-              className="campo mt-1 py-2"
-              value={fisico}
-              onChange={(e) => setFisico(e.target.value)}
-            />
-          </label>
+          {frente.tareas > 0 ? (
+            <p className="rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600">
+              El avance físico sale del cronograma ({frente.tareas} tarea
+              {frente.tareas === 1 ? "" : "s"}). Se edita desde Cronograma.
+            </p>
+          ) : (
+            <label className="block text-xs text-slate-600">
+              Avance físico (%)
+              <input
+                type="number"
+                min={0}
+                max={100}
+                step="0.1"
+                className="campo mt-1 py-2"
+                value={fisico}
+                onChange={(e) => setFisico(e.target.value)}
+              />
+            </label>
+          )}
           <label className="block text-xs text-slate-600">
             Avance financiero (%)
             <input

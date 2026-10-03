@@ -70,6 +70,27 @@ export type FrenteConSemaforo = Frente & {
   alertas: number;
   total_reportes: number;
   semaforo: Semaforo;
+  /** Si es > 0, el avance fisico sale del cronograma y no se edita a mano. */
+  tareas: number;
+};
+
+/** Una tarea del cronograma. Pertenece a un frente. */
+export type Tarea = {
+  id: string;
+  frente_de_trabajo_id: string;
+  nombre: string;
+  inicio: string;
+  fin: string;
+  avance: number;
+  /** null = ponderar por la duracion en dias. */
+  peso: number | null;
+  orden: number;
+  creado_en: string;
+  actualizado_en: string;
+};
+
+export type TareaExpandida = Tarea & {
+  frente: Pick<Frente, "id" | "nombre" | "frente_principal"> | null;
 };
 
 /** Analisis de gerencia: contenido privado que se comparte eligiendo usuarios. */
