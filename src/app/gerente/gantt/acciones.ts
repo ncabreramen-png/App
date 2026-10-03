@@ -13,14 +13,21 @@ function revalidar() {
   revalidatePath("/gerente/informe");
 }
 
-function validar(e: { nombre: string; inicio: string; fin: string; avance: number }): string | null {
+function validar(e: { nombre: string; inicio: string; fin: string }): string | null {
   if (!e.nombre.trim()) return "La tarea necesita un nombre.";
   if (!e.inicio || !e.fin) return "Faltan las fechas de inicio y fin.";
   if (e.fin < e.inicio) return "La fecha de fin no puede ser anterior al inicio.";
-  if (!Number.isFinite(e.avance) || e.avance < 0 || e.avance > 100) {
-    return "El avance debe estar entre 0 y 100.";
-  }
   return null;
+}
+
+function porcentajeValido(n: number): boolean {
+  return Number.isFinite(n) && n >= 0 && n <= 100;
+}
+
+/** Primer dia del mes corriente, en formato AAAA-MM-01. */
+function mesCorriente(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
 }
 
 export async function guardarTarea(entrada: {
@@ -29,7 +36,6 @@ export async function guardarTarea(entrada: {
   nombre: string;
   inicio: string;
   fin: string;
-  avance: number;
   peso: number | null;
 }): Promise<Resultado> {
   await exigirGerente();
@@ -42,12 +48,12 @@ export async function guardarTarea(entrada: {
   }
 
   const supabase = await crearClienteServidor();
+  // El avance no viaja aca: lo determina la medicion del mes.
   const fila = {
     frente_de_trabajo_id: entrada.frenteId,
     nombre: entrada.nombre.trim(),
     inicio: entrada.inicio,
     fin: entrada.fin,
-    avance: entrada.avance,
     peso: entrada.peso,
   };
 
@@ -99,7 +105,14 @@ export async function importarTareas(
     ]),
   );
 
-  const filas = [];
+  const filas: {
+    frente_de_trabajo_id: string;
+    nombre: string;
+    inicio: string;
+    fin: string;
+    orden: number;
+    avanceInicial: number;
+  }[] = [];
   for (const [i, linea] of lineas.entries()) {
     const partes = linea.split("|").map((p) => p.trim());
     if (partes.length < 4) {
@@ -115,12 +128,10 @@ export async function importarTareas(
     }
 
     const avance = partes[4] ? Number(partes[4].replace(",", ".")) : 0;
-    const err = validar({
-      nombre: partes[1],
-      inicio: partes[2],
-      fin: partes[3],
-      avance,
-    });
+    if (!porcentajeValido(avance)) {
+      return { ok: false, error: `Línea ${i + 1}: el avance debe estar entre 0 y 100.` };
+    }
+    const err = validar({ nombre: partes[1], inicio: partes[2], fin: partes[3] });
     if (err) return { ok: false, error: `Línea ${i + 1}: ${err}` };
 
     filas.push({
@@ -128,16 +139,68 @@ export async function importarTareas(
       nombre: partes[1],
       inicio: partes[2],
       fin: partes[3],
-      avance,
       orden: i,
+      avanceInicial: avance,
     });
   }
 
-  const { error } = await supabase.from("tareas").insert(filas);
+  const { data: creadas, error } = await supabase
+    .from("tareas")
+    .insert(filas.map(({ avanceInicial: _ignorado, ...t }) => t))
+    .select("id");
+
   if (error) return { ok: false, error: error.message };
+
+  // El avance que venia en la planilla se registra como la medicion del mes
+  // corriente. Es la lectura natural de "esta tarea hoy va al 60%".
+  const mediciones = (creadas ?? [])
+    .map((t: { id: string }, k: number) => ({
+      tarea_id: t.id,
+      periodo: mesCorriente(),
+      avance: filas[k].avanceInicial,
+    }))
+    .filter((m) => m.avance > 0);
+
+  if (mediciones.length > 0) {
+    const { error: e2 } = await supabase.from("mediciones").insert(mediciones);
+    if (e2) return { ok: false, error: `Las tareas se crearon, pero el avance no: ${e2.message}` };
+  }
 
   revalidar();
   return { ok: true, filas: filas.length };
+}
+
+/** Guarda el cierre de un mes: la medicion acumulada de cada tarea. */
+export async function guardarCierreMensual(entrada: {
+  periodo: string;
+  valores: { tareaId: string; avance: number }[];
+}): Promise<Resultado & { guardadas?: number }> {
+  await exigirGerente();
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(entrada.periodo)) {
+    return { ok: false, error: "El mes no es válido." };
+  }
+
+  for (const v of entrada.valores) {
+    if (!porcentajeValido(v.avance)) {
+      return { ok: false, error: "Todos los avances deben estar entre 0 y 100." };
+    }
+  }
+
+  const supabase = await crearClienteServidor();
+  const { error } = await supabase.from("mediciones").upsert(
+    entrada.valores.map((v) => ({
+      tarea_id: v.tareaId,
+      periodo: entrada.periodo,
+      avance: v.avance,
+    })),
+    { onConflict: "tarea_id,periodo" },
+  );
+
+  if (error) return { ok: false, error: error.message };
+
+  revalidar();
+  return { ok: true, guardadas: entrada.valores.length };
 }
 
 /**
@@ -148,6 +211,13 @@ export async function importarTareas(
  * tareas guardan el avance de hoy, no su historia, asi que los meses
  * anteriores conservan el valor que se sello cuando correspondia.
  */
+/**
+ * Vuelca el cronograma a la curva del proyecto.
+ *
+ * El programado sale de las fechas de las tareas; el real, de las mediciones
+ * mensuales. Ya no hay limitacion de "solo el mes corriente": con la historia
+ * de mediciones la serie real se reconstruye completa.
+ */
 export async function recalcularCurva(): Promise<
   Resultado & { meses?: number; real?: number }
 > {
@@ -155,36 +225,31 @@ export async function recalcularCurva(): Promise<
 
   const supabase = await crearClienteServidor();
 
-  const [{ data: programada, error: e1 }, { data: real, error: e2 }] = await Promise.all([
+  const [programada, real, actual] = await Promise.all([
     supabase.rpc("curva_programada"),
+    supabase.rpc("curva_real"),
     supabase.rpc("avance_real_actual"),
   ]);
 
-  if (e1 || e2) return { ok: false, error: (e1 ?? e2)!.message };
+  const fallo = programada.error ?? real.error ?? actual.error;
+  if (fallo) return { ok: false, error: fallo.message };
 
-  const puntos = (programada ?? []) as { periodo: string; avance_programado: number }[];
-  if (puntos.length === 0) {
+  const prog = (programada.data ?? []) as { periodo: string; avance_programado: number }[];
+  if (prog.length === 0) {
     return { ok: false, error: "No hay tareas cargadas: el cronograma está vacío." };
   }
 
-  const hoy = new Date();
-  const mesActual = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, "0")}-01`;
-
-  const { data: existentes } = await supabase.from("curva_avance").select("periodo, avance_real");
-  const realPrevio = new Map(
-    ((existentes ?? []) as { periodo: string; avance_real: number | null }[]).map((r) => [
+  const reales = new Map(
+    ((real.data ?? []) as { periodo: string; avance_real: number }[]).map((r) => [
       r.periodo,
       r.avance_real,
     ]),
   );
 
-  const filas = puntos.map((p) => ({
+  const filas = prog.map((p) => ({
     periodo: p.periodo,
     avance_programado: p.avance_programado,
-    avance_real:
-      p.periodo === mesActual
-        ? Number(real ?? 0)
-        : (realPrevio.get(p.periodo) ?? null),
+    avance_real: reales.has(p.periodo) ? reales.get(p.periodo)! : null,
   }));
 
   const { error } = await supabase
@@ -194,5 +259,5 @@ export async function recalcularCurva(): Promise<
   if (error) return { ok: false, error: error.message };
 
   revalidar();
-  return { ok: true, meses: filas.length, real: Number(real ?? 0) };
+  return { ok: true, meses: filas.length, real: Number(actual.data ?? 0) };
 }

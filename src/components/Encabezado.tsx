@@ -6,6 +6,7 @@ const ENLACES_GERENTE = [
   { href: "/gerente/aprobaciones", texto: "Aprobaciones" },
   { href: "/gerente/reportes", texto: "Reportes" },
   { href: "/gerente/gantt", texto: "Cronograma" },
+  { href: "/gerente/cierre", texto: "Cierre mensual" },
   { href: "/gerente/curva", texto: "Curva" },
   { href: "/analisis", texto: "Análisis" },
   { href: "/gerente/informe", texto: "Informe" },

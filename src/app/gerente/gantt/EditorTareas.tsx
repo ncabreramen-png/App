@@ -63,7 +63,6 @@ export default function EditorTareas({
         nombre: String(d.get("nombre") ?? ""),
         inicio: String(d.get("inicio") ?? ""),
         fin: String(d.get("fin") ?? ""),
-        avance: Number(d.get("avance") ?? 0),
         peso: pesoCrudo === "" ? null : Number(pesoCrudo),
       }),
     );
@@ -174,21 +173,6 @@ export default function EditorTareas({
           </label>
 
           <label className="block">
-            <span className="etiqueta">Avance (%)</span>
-            <input
-              name="avance"
-              type="number"
-              step="0.1"
-              min={0}
-              max={100}
-              required
-              defaultValue={editando?.avance ?? 0}
-              key={`a-${editando?.id ?? "nuevo"}`}
-              className="campo py-2"
-            />
-          </label>
-
-          <label className="block">
             <span className="etiqueta">Peso — opcional</span>
             <input
               name="peso"
@@ -206,6 +190,12 @@ export default function EditorTareas({
         <p className="text-xs text-slate-500">
           Sin peso, la tarea pondera por su duración en días. Cargalo solo si
           una actividad corta pesa más que una larga dentro del frente.
+          <br />
+          El <b>avance no se carga acá</b>: se mide mes a mes desde{" "}
+          <a href="/gerente/cierre" className="font-medium text-marca-600 hover:underline">
+            Cierre mensual
+          </a>
+          .
         </p>
 
         <div className="flex flex-wrap gap-2">
