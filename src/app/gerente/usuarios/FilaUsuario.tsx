@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { DISCIPLINAS, ROLES, type Usuario } from "@/lib/tipos";
+import PanelSustitucion from "./PanelSustitucion";
 import { borrarUsuario, cambiarActivo, editarUsuario } from "./acciones";
 
 /**
@@ -16,14 +17,20 @@ export default function FilaUsuario({
   usuario,
   esUnoMismo,
   dependencias,
+  candidatos,
+  relevo,
 }: {
   usuario: Usuario;
   esUnoMismo: boolean;
   dependencias: number;
+  /** Activos de la misma disciplina, posibles sucesores. */
+  candidatos: Usuario[];
+  relevo?: { sustituyeA?: string; sustituidoPor?: string };
 }) {
   const router = useRouter();
   const [editando, setEditando] = useState(false);
   const [confirmando, setConfirmando] = useState(false);
+  const [sustituyendo, setSustituyendo] = useState(false);
   const [nombre, setNombre] = useState(usuario.nombre);
   const [disciplina, setDisciplina] = useState<string>(usuario.disciplina);
   const [rol, setRol] = useState<string>(usuario.rol);
@@ -44,6 +51,20 @@ export default function FilaUsuario({
     if (r.aviso) setAviso(r.aviso);
     router.refresh();
     return true;
+  }
+
+  if (sustituyendo) {
+    return (
+      <tr className="border-b border-slate-100 last:border-0">
+        <td colSpan={5} className="px-4 py-3">
+          <PanelSustitucion
+            predecesor={usuario}
+            candidatos={candidatos}
+            onCerrar={() => setSustituyendo(false)}
+          />
+        </td>
+      </tr>
+    );
   }
 
   if (editando) {
@@ -139,6 +160,16 @@ export default function FilaUsuario({
             Desactivado
           </span>
         )}
+        {relevo?.sustituidoPor && (
+          <p className="mt-0.5 text-xs text-slate-500">
+            Sustituido por {relevo.sustituidoPor}
+          </p>
+        )}
+        {relevo?.sustituyeA && (
+          <p className="mt-0.5 text-xs text-slate-500">
+            Retoma el trabajo de {relevo.sustituyeA}
+          </p>
+        )}
         {(error || aviso) && (
           <p
             className={`mt-1 text-xs ${error ? "text-red-700" : "text-amber-700"}`}
@@ -189,6 +220,14 @@ export default function FilaUsuario({
                 >
                   {usuario.activo ? "Desactivar" : "Reactivar"}
                 </button>
+                {!relevo?.sustituidoPor && usuario.activo && (
+                  <button
+                    onClick={() => setSustituyendo(true)}
+                    className="text-xs font-medium text-marca-600 hover:underline"
+                  >
+                    Sustituir
+                  </button>
+                )}
                 <button
                   onClick={() => setConfirmando(true)}
                   disabled={ocupado || dependencias > 0}

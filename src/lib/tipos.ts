@@ -80,6 +80,16 @@ export type FrenteConSemaforo = Frente & {
   tareas: number;
 };
 
+/** Relevo de un profesional por otro en la misma disciplina. */
+export type Sustitucion = {
+  id: string;
+  predecesor_id: string;
+  sucesor_id: string;
+  disciplina: Disciplina;
+  motivo: string | null;
+  creado_en: string;
+};
+
 /** Una tarea del cronograma. Pertenece a un frente. */
 export type Tarea = {
   id: string;

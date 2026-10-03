@@ -18,20 +18,29 @@ export default async function MisReportes() {
   const usuario = await exigirUsuario();
   const supabase = await crearClienteServidor();
 
-  // RLS ya limita al autor; el filtro explicito lo deja evidente en el codigo.
+  // Sin filtro por autor a proposito: el RLS ya limita a lo propio mas lo
+  // heredado de quien uno sustituyo. Filtrar aca ocultaria justamente eso.
   const { data, error } = await supabase
     .from("reportes")
     .select(SELECCION)
-    .eq("reportado_por", usuario.id)
     .order("fecha", { ascending: false });
 
   const reportes = (data ?? []) as unknown as ReporteExpandido[];
+  const heredados = reportes.filter((r) => r.reportado_por !== usuario.id).length;
   const adjuntos = await firmarPorEntidad(BUCKET_REPORTES, reportes);
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-3">
-        <h1 className="text-xl font-bold text-slate-900">Mis reportes</h1>
+        <div>
+          <h1 className="text-xl font-bold text-slate-900">Mis reportes</h1>
+          {heredados > 0 && (
+            <p className="mt-0.5 text-xs text-slate-500">
+              Incluye {heredados} que viene{heredados === 1 ? "" : "n"} de quien
+              te precedió en la disciplina.
+            </p>
+          )}
+        </div>
         <Link href="/campo/nuevo" className="boton">
           + Nuevo
         </Link>
@@ -54,7 +63,12 @@ export default async function MisReportes() {
 
       <div className="space-y-3">
         {reportes.map((r) => (
-          <TarjetaReporte key={r.id} reporte={r} archivos={adjuntos[r.id] ?? []} />
+          <TarjetaReporte
+            key={r.id}
+            reporte={r}
+            archivos={adjuntos[r.id] ?? []}
+            mostrarAutor={r.reportado_por !== usuario.id}
+          />
         ))}
       </div>
     </div>

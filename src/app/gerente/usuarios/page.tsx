@@ -10,11 +10,13 @@ export default async function Usuarios() {
   const actual = await exigirGerente();
   const supabase = await crearClienteServidor();
 
-  const [{ data }, { data: reportes }, { data: analisis }] = await Promise.all([
-    supabase.from("usuarios").select("*").order("nombre"),
-    supabase.from("reportes").select("reportado_por"),
-    supabase.from("analisis").select("creado_por"),
-  ]);
+  const [{ data }, { data: reportes }, { data: analisis }, { data: relevos }] =
+    await Promise.all([
+      supabase.from("usuarios").select("*").order("nombre"),
+      supabase.from("reportes").select("reportado_por"),
+      supabase.from("analisis").select("creado_por"),
+      supabase.from("sustituciones").select("predecesor_id, sucesor_id"),
+    ]);
 
   const usuarios = (data ?? []) as Usuario[];
 
@@ -26,6 +28,14 @@ export default async function Usuarios() {
   }
   for (const a of (analisis ?? []) as { creado_por: string }[]) {
     dependencias.set(a.creado_por, (dependencias.get(a.creado_por) ?? 0) + 1);
+  }
+
+  const porId = new Map(usuarios.map((u) => [u.id, u.nombre]));
+  const sustituidoPor = new Map<string, string>();
+  const sustituyeA = new Map<string, string>();
+  for (const r of (relevos ?? []) as { predecesor_id: string; sucesor_id: string }[]) {
+    sustituidoPor.set(r.predecesor_id, porId.get(r.sucesor_id) ?? "—");
+    sustituyeA.set(r.sucesor_id, porId.get(r.predecesor_id) ?? "—");
   }
 
   const hayServiceRole = Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY);
@@ -67,6 +77,13 @@ export default async function Usuarios() {
                 usuario={u}
                 esUnoMismo={u.id === actual.id}
                 dependencias={dependencias.get(u.id) ?? 0}
+                candidatos={usuarios.filter(
+                  (c) => c.activo && c.id !== u.id && c.disciplina === u.disciplina,
+                )}
+                relevo={{
+                  sustituidoPor: sustituidoPor.get(u.id),
+                  sustituyeA: sustituyeA.get(u.id),
+                }}
               />
             ))}
             {usuarios.length === 0 && (
@@ -81,6 +98,8 @@ export default async function Usuarios() {
       </div>
 
       <p className="text-xs text-slate-500">
+        <b>Sustituir</b> entrega el historial de esa persona a su reemplazo en
+        la misma disciplina, sin cambiar quién firmó cada reporte.{" "}
         <b>Desactivar</b> corta el acceso y conserva los reportes a nombre de esa
         persona. <b>Borrar</b> solo está disponible para quien no dejó historial:
         eliminar a alguien con reportes los dejaría sin autor.
