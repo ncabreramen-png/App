@@ -5,6 +5,13 @@ export const metadata: Metadata = {
   title: "Reportes de obra — Proyecto Chilama",
   description:
     "Reportes de campo y estatus consolidado de la supervisión del proyecto Chilama.",
+  applicationName: "Chilama",
+  // Nombre corto y pantalla completa cuando se agrega al inicio en iPhone.
+  appleWebApp: {
+    capable: true,
+    title: "Chilama",
+    statusBarStyle: "default",
+  },
 };
 
 export const viewport: Viewport = {
