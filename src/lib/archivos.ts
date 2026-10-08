@@ -13,6 +13,7 @@ export type Archivo = {
 export const BUCKET_REPORTES = "reportes-fotos";
 export const BUCKET_ANALISIS = "analisis-archivos";
 export const BUCKET_NC = "nc-archivos";
+export const BUCKET_ADMIN = "admin-archivos";
 
 /** Tope por archivo. Debe coincidir con file_size_limit del bucket. */
 export const LIMITE_REPORTE = 25 * 1024 * 1024;

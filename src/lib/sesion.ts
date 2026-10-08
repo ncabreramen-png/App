@@ -68,6 +68,27 @@ export async function exigirCalidad(): Promise<Usuario> {
   return usuario;
 }
 
+/**
+ * Administracion: quien carga el corte mensual de avance y estimaciones.
+ * Igual que con calidad, el rol Gerente queda fuera aunque tenga esa
+ * disciplina: para la gerencia estas cifras son de solo lectura.
+ */
+export function esAdministracion(usuario: Usuario): boolean {
+  return usuario.disciplina === "Administración" && usuario.rol !== "Gerente";
+}
+
+/** Quien puede entrar a la pantalla de administracion y ver los montos. */
+export function veAdministracion(usuario: Usuario): boolean {
+  return usuario.rol === "Gerente" || esAdministracion(usuario);
+}
+
+/** Exige ser administracion para poder escribir. */
+export async function exigirAdministracion(): Promise<Usuario> {
+  const usuario = await exigirUsuario();
+  if (!esAdministracion(usuario)) redirect("/administracion");
+  return usuario;
+}
+
 /** Exige rol Gerente. Un usuario de campo termina en su propia vista. */
 export async function exigirGerente(): Promise<Usuario> {
   const usuario = await exigirUsuario();
