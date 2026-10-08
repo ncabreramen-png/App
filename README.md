@@ -123,6 +123,13 @@ reportes ajenos ni siquiera consultando la API directamente.
 - `/analisis` — análisis de gerencia. Los crea el gerente con adjuntos de
   cualquier tipo y nacen **privados**; se comparten eligiendo usuarios uno por
   uno. Quien los recibe los ve en esta misma pantalla, en modo lectura.
+- `/administracion` — corte mensual del contrato: avance programado y real,
+  avance financiero (monto y porcentaje) y estimaciones autorizadas y pagadas,
+  con su cantidad e importe. Hay **un corte por mes** y las cantidades e
+  importes son **acumulados** al cierre. Lo carga el perfil de disciplina
+  *Administración*; la gerencia lo ve en modo lectura y aparece en el informe
+  de estatus. Las cifras **no** tocan la curva del proyecto, para no dejar
+  tres fuentes escribiendo los mismos meses.
 - `/reportes/[id]` — detalle de un reporte; es el destino de los links de los
   correos.
 
@@ -145,13 +152,15 @@ el envío sea rápido con mala señal; los documentos se suben tal cual, porque
 recomprimirlos los rompería. Las imágenes se muestran como miniatura y el resto
 como archivo descargable.
 
-Hay dos buckets, los dos **privados**, servidos con URLs firmadas de una hora
+Los buckets son todos **privados**, servidos con URLs firmadas de una hora
 generadas con la sesión del usuario:
 
 | Bucket | Para qué | Tope por archivo |
 |---|---|---|
 | `reportes-fotos` | adjuntos de los reportes de campo | 25 MB |
 | `analisis-archivos` | adjuntos de los análisis de gerencia | 50 MB |
+| `nc-archivos` | adjuntos de las no conformidades | 25 MB |
+| `admin-archivos` | adjuntos de los cortes de administración | 25 MB |
 
 La ruta de un análisis es `<usuario>/<análisis>/<archivo>`, de modo que el
 permiso de lectura de quien lo recibe se resuelve mirando la carpeta: el

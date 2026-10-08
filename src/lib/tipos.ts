@@ -13,6 +13,8 @@ export const DISCIPLINAS = [
   "Seguridad y salud ocupacional",
   "Gestión social",
   "Aseguramiento de calidad",
+  // Administracion: no reporta por frente, informa el corte mensual del contrato.
+  "Administración",
 ] as const;
 
 export const ROLES = ["Campo", "Gerente"] as const;
@@ -168,6 +170,36 @@ export type PuntoCurva = {
   actualizado_en: string;
 };
 
+/**
+ * Corte mensual de administracion: como va el contrato en plata y en papeles.
+ *
+ * Los importes y las cantidades son ACUMULADOS al cierre del mes, igual que el
+ * avance. Asi la serie se lee sola y no hay que sumar meses para saber donde
+ * va el contrato.
+ */
+export type ReporteAdministracion = {
+  id: string;
+  /** Primer dia del mes informado. Hay uno solo por mes. */
+  periodo: string;
+  avance_programado: number;
+  avance_real: number;
+  monto_financiero: number;
+  avance_financiero: number;
+  estimaciones_autorizadas: number;
+  importe_autorizado: number;
+  estimaciones_pagadas: number;
+  importe_pagado: number;
+  comentario: string;
+  archivos: Archivo[];
+  creado_por: string;
+  creado_en: string;
+  actualizado_en: string;
+};
+
+export type ReporteAdministracionExpandido = ReporteAdministracion & {
+  autor: Pick<Usuario, "id" | "nombre" | "disciplina"> | null;
+};
+
 export type Reporte = {
   id: string;
   frente_de_trabajo_id: string;
@@ -237,4 +269,17 @@ export function ultimoMedido(puntos: PuntoCurva[]): PuntoCurva | null {
     if (puntos[i].avance_real !== null) return puntos[i];
   }
   return null;
+}
+
+/**
+ * Dolares con separador de miles: $1,234.56. El Salvador usa USD, coma para
+ * los miles y punto decimal.
+ */
+export function formatearMoneda(n: number): string {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(Number(n) || 0);
 }

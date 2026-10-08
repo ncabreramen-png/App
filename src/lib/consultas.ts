@@ -5,6 +5,7 @@ import type {
   PuntoCurva,
   ReporteExpandido,
   NoConformidadExpandida,
+  ReporteAdministracionExpandido,
   TareaExpandida,
 } from "@/lib/tipos";
 
@@ -142,4 +143,25 @@ export async function obtenerNoConformidades(
 
   const { data } = await consulta;
   return (data ?? []) as unknown as NoConformidadExpandida[];
+}
+
+/**
+ * Cortes mensuales de administracion, del mas reciente al mas viejo.
+ *
+ * El RLS ya decide quien los ve (gerencia y administracion): si lo consulta
+ * alguien mas, la lista vuelve vacia en vez de fallar.
+ */
+export async function obtenerReportesAdministracion(): Promise<
+  ReporteAdministracionExpandido[]
+> {
+  const supabase = await crearClienteServidor();
+  const { data } = await supabase
+    .from("reportes_administracion")
+    .select(
+      `*,
+       autor:usuarios!reportes_administracion_creado_por_fkey (id, nombre, disciplina)`,
+    )
+    .order("periodo", { ascending: false });
+
+  return (data ?? []) as unknown as ReporteAdministracionExpandido[];
 }

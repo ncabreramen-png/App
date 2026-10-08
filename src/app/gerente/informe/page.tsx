@@ -8,9 +8,10 @@ import {
   obtenerFrentesConSemaforo,
   obtenerNoConformidades,
   obtenerReportes,
+  obtenerReportesAdministracion,
 } from "@/lib/consultas";
 import { BUCKET_NC } from "@/lib/archivos";
-import { codigoNC } from "@/lib/tipos";
+import { codigoNC, formatearMoneda, formatearPeriodo, formatearPorcentaje } from "@/lib/tipos";
 import { firmarPorEntidad } from "@/lib/adjuntos.servidor";
 import { BUCKET_REPORTES } from "@/lib/archivos";
 import {
@@ -23,12 +24,15 @@ import {
 export const dynamic = "force-dynamic";
 
 export default async function Informe() {
-  const [frentes, { reportes }, curva, noConformidades] = await Promise.all([
+  const [frentes, { reportes }, curva, noConformidades, cortes] = await Promise.all([
     obtenerFrentesConSemaforo(),
     obtenerReportes(),
     obtenerCurva(),
     obtenerNoConformidades(),
+    obtenerReportesAdministracion(),
   ]);
+  // Vienen del mas reciente al mas viejo.
+  const corte = cortes[0] ?? null;
   const adjuntos = await firmarPorEntidad(BUCKET_REPORTES, reportes);
   const adjuntosNC = await firmarPorEntidad(BUCKET_NC, noConformidades);
   const ncPendientes = noConformidades.filter((n) => n.estado === "Pendiente").length;
@@ -75,6 +79,77 @@ export default async function Informe() {
           <p className="text-xs text-slate-600">Alertas</p>
         </div>
       </section>
+
+      {corte && (
+        <section className="evitar-corte space-y-3">
+          <h2 className="border-b border-slate-300 pb-1 text-lg font-bold text-marca-800">
+            Administración
+          </h2>
+          <p className="text-sm text-slate-600">
+            Corte al cierre de{" "}
+            <span className="capitalize">{formatearPeriodo(corte.periodo)}</span>. Las
+            cantidades e importes son acumulados.
+          </p>
+
+          <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <CasillaInforme
+              etiqueta="Programado"
+              valor={formatearPorcentaje(corte.avance_programado)}
+            />
+            <CasillaInforme
+              etiqueta="Real"
+              valor={formatearPorcentaje(corte.avance_real)}
+            />
+            <CasillaInforme
+              etiqueta="Ejecutado"
+              valor={formatearMoneda(corte.monto_financiero)}
+              pie={formatearPorcentaje(corte.avance_financiero)}
+            />
+            <CasillaInforme
+              etiqueta="Autorizado sin pagar"
+              valor={formatearMoneda(
+                Number(corte.importe_autorizado) - Number(corte.importe_pagado),
+              )}
+            />
+          </dl>
+
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-slate-300 text-left text-xs uppercase text-slate-500">
+                <th className="py-1.5 pr-2 font-semibold">Estimaciones</th>
+                <th className="py-1.5 pr-2 text-right font-semibold">Cantidad</th>
+                <th className="py-1.5 text-right font-semibold">Importe</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr className="border-b border-slate-200">
+                <td className="py-1.5 pr-2 text-slate-700">Autorizadas</td>
+                <td className="py-1.5 pr-2 text-right text-slate-900">
+                  {corte.estimaciones_autorizadas}
+                </td>
+                <td className="py-1.5 text-right font-semibold text-slate-900">
+                  {formatearMoneda(corte.importe_autorizado)}
+                </td>
+              </tr>
+              <tr>
+                <td className="py-1.5 pr-2 text-slate-700">Pagadas</td>
+                <td className="py-1.5 pr-2 text-right text-slate-900">
+                  {corte.estimaciones_pagadas}
+                </td>
+                <td className="py-1.5 text-right font-semibold text-slate-900">
+                  {formatearMoneda(corte.importe_pagado)}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+
+          {corte.comentario && (
+            <p className="whitespace-pre-wrap text-sm text-slate-700">
+              {corte.comentario}
+            </p>
+          )}
+        </section>
+      )}
 
       {noConformidades.length > 0 && (
         <section className="space-y-3">
@@ -203,6 +278,25 @@ export default async function Informe() {
           </section>
         );
       })}
+    </div>
+  );
+}
+
+
+function CasillaInforme({
+  etiqueta,
+  valor,
+  pie,
+}: {
+  etiqueta: string;
+  valor: string;
+  pie?: string;
+}) {
+  return (
+    <div className="tarjeta p-3 text-center">
+      <p className="text-base font-bold text-slate-900">{valor}</p>
+      <p className="text-xs text-slate-600">{etiqueta}</p>
+      {pie && <p className="mt-0.5 text-[11px] text-slate-500">{pie}</p>}
     </div>
   );
 }
