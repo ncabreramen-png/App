@@ -206,17 +206,9 @@ export async function guardarCierreMensual(entrada: {
 /**
  * Vuelca el cronograma a la curva del proyecto.
  *
- * El programado se recalcula para todos los meses, porque sale entero de las
- * fechas de las tareas. El real solo se puede sellar en el mes corriente: las
- * tareas guardan el avance de hoy, no su historia, asi que los meses
- * anteriores conservan el valor que se sello cuando correspondia.
- */
-/**
- * Vuelca el cronograma a la curva del proyecto.
- *
  * El programado sale de las fechas de las tareas; el real, de las mediciones
- * mensuales. Ya no hay limitacion de "solo el mes corriente": con la historia
- * de mediciones la serie real se reconstruye completa.
+ * mensuales. Como las mediciones guardan la historia mes a mes, la serie real
+ * se reconstruye completa y no solo el mes corriente.
  */
 export async function recalcularCurva(): Promise<
   Resultado & { meses?: number; real?: number }
